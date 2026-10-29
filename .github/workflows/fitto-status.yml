@@ -1,0 +1,37 @@
+name: fitto-status
+
+# Record a status or thumbs for jobs from your digest. Inputs are visible in this
+# public repo's Actions log, so they carry only opaque job ids, never titles or URLs.
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "Job id(s) from the digest, comma-separated"
+        required: true
+        type: string
+      status:
+        description: "New status, or up/down feedback"
+        required: true
+        type: choice
+        options: [saved, applied, interview, offer, rejected, no, up, down, new]
+
+permissions:
+  contents: write # encrypted state on the fitto-state branch
+
+concurrency:
+  group: fitto-state
+  cancel-in-progress: false
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Update encrypted state
+        env:
+          FITTO_STATE_KEY: ${{ secrets.FITTO_STATE_KEY }}
+          IDS: ${{ inputs.ids }}
+          STATUS: ${{ inputs.status }}
+        run: pnpm fitto status "$IDS" "$STATUS"

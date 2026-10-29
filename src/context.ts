@@ -4,7 +4,9 @@ import { loadCompanies, loadProfile, loadSettings, ProfileSchema, type Companies
 import { providerFromEnv } from "./llm/provider.js";
 import { log, mask } from "./log.js";
 import { HeuristicScorer, LlmScorer, type Scorer } from "./score.js";
+import { sinksFromEnv, type Sink } from "./sinks/index.js";
 import { FileStateStore, stateStoreFromEnv, type StateStore } from "./state.js";
+import type { Links } from "./digest.js";
 
 export const DRY_RUN_KEY = "fitto-dry-run-local-key-not-secret";
 
@@ -17,6 +19,8 @@ export interface Context {
   scorer: Scorer;
   /** Secret used to derive opaque job ids. */
   idSecret: string;
+  sinks: Sink[];
+  links: Links;
 }
 
 function loadProfileForRun(env: NodeJS.ProcessEnv, dryRun: boolean): Profile {
@@ -53,5 +57,7 @@ export function buildContext(env = process.env): Context {
     store: stateStoreFor(env, settings.dryRun),
     scorer: scorerFromEnv(env),
     idSecret: settings.stateKey ?? DRY_RUN_KEY,
+    sinks: sinksFromEnv(env, settings.dryRun),
+    links: { repo: settings.repo, site: env.FITTO_SITE_URL || undefined },
   };
 }
