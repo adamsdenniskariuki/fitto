@@ -2,14 +2,14 @@
  * Logging that is safe for a public repository: callers must only pass
  * aggregate, non-personal information (counts, source names, public slugs).
  */
-const quiet = process.env.FITTO_QUIET === "1" || process.env.VITEST === "true";
+const quiet = (): boolean => process.env.FITTO_QUIET === "1" || (process.env.VITEST === "true" && process.env.FITTO_LOG_IN_TESTS !== "1");
 
 export const log = {
   info(msg: string): void {
-    if (!quiet) console.log(`[fitto] ${msg}`);
+    if (!quiet()) console.log(`[fitto] ${msg}`);
   },
   warn(msg: string): void {
-    if (!quiet) console.warn(`[fitto] warning: ${msg}`);
+    if (!quiet()) console.warn(`[fitto] warning: ${msg}`);
   },
   error(msg: string): void {
     console.error(`[fitto] error: ${msg}`);

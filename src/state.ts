@@ -61,11 +61,23 @@ export interface Learned {
 
 export interface RunLog {
   at: string;
-  kind: "daily" | "weekly" | "status";
+  kind: "daily" | "weekly" | "status" | "tnc";
   fetched?: number;
   newJobs?: number;
   scored?: number;
   sent?: number;
+}
+
+/** A job the user explicitly sent to The Next Chapter. */
+export interface Submission {
+  state: "sent" | "accepted" | "failed";
+  detail: string;
+  /** Idempotency-Key used for this job's URL (hash of the URL). */
+  key: string;
+  statusUrl?: string;
+  at: string;
+  updatedAt: string;
+  attempts: number;
 }
 
 export interface State {
@@ -75,12 +87,13 @@ export interface State {
   scoreCache: Record<string, ScoreResult & { at: string; provider: string }>;
   drafts: Record<string, Draft>;
   learned: Learned;
+  submissions: Record<string, Submission>;
   runs: RunLog[];
   weeklySentAt?: string;
 }
 
 export function emptyState(): State {
-  return { version: 1, jobs: {}, scoreCache: {}, drafts: {}, learned: { auto: {}, manual: {} }, runs: [] };
+  return { version: 1, jobs: {}, scoreCache: {}, drafts: {}, learned: { auto: {}, manual: {} }, submissions: {}, runs: [] };
 }
 
 // ---------- encryption ----------
@@ -286,6 +299,10 @@ export function mergeStates(ours: State, theirs: State): State {
   if (later(out.learned.updatedAt, theirs.learned.updatedAt) === "b") out.learned = structuredClone(theirs.learned);
   out.scoreCache = { ...theirs.scoreCache, ...out.scoreCache };
   out.drafts = { ...theirs.drafts, ...out.drafts };
+  for (const [id, t] of Object.entries(theirs.submissions ?? {})) {
+    const o = out.submissions[id];
+    if (!o || later(o.updatedAt, t.updatedAt) === "b") out.submissions[id] = structuredClone(t);
+  }
   const runs = new Map([...theirs.runs, ...out.runs].map((r) => [`${r.at}|${r.kind}`, r]));
   out.runs = [...runs.values()].sort((a, b) => a.at.localeCompare(b.at)).slice(-200);
   if (later(out.weeklySentAt, theirs.weeklySentAt) === "b") out.weeklySentAt = theirs.weeklySentAt;
@@ -330,7 +347,7 @@ export function pruneState(s: State, now = Date.now()): void {
   const day = 86_400_000;
   for (const [id, r] of Object.entries(s.jobs)) {
     const age = now - Date.parse(r.lastSeen);
-    if (r.status === "new" && !r.feedback && age > 45 * day) {
+    if (r.status === "new" && !r.feedback && !s.submissions[id] && age > 45 * day) {
       delete s.jobs[id];
       delete s.drafts[id];
     }

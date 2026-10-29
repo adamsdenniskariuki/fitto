@@ -1,0 +1,39 @@
+name: fitto-tnc
+
+# Send jobs you explicitly selected (on the Fitto site or by hand) to The Next Chapter.
+# Never runs on a schedule. Inputs are public in this repo's Actions log, so they carry
+# only opaque job ids; URLs are resolved from the encrypted state and never printed.
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "Opaque job id(s), comma-separated (max 50), or 'refresh' to re-check pending ones"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run: resolve ids but send nothing"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # encrypted state on the fitto-state branch
+
+concurrency:
+  group: fitto-state
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Send selected jobs to The Next Chapter
+        env:
+          FITTO_STATE_KEY: ${{ secrets.FITTO_STATE_KEY }}
+          TNC_API_TOKEN: ${{ secrets.TNC_API_TOKEN }}
+          FITTO_DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          IDS: ${{ inputs.ids }}
+        run: pnpm fitto tnc "$IDS"

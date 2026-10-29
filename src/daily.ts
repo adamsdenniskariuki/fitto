@@ -7,6 +7,7 @@ import { markDigested, renderDigest, selectDigest } from "./digest.js";
 import { deliver } from "./sinks/index.js";
 import { adjustmentFor, fewShotExamples, learnWeights } from "./learn.js";
 import { generateDrafts } from "./drafts.js";
+import { refreshPending, tncSinkFromEnv } from "./submit.js";
 import { buildTasks, fetchAll } from "./sources/index.js";
 import { pruneState, saveState } from "./state.js";
 
@@ -48,6 +49,12 @@ export async function runDaily(ctx: Context, http = new HttpClient()): Promise<D
   );
 
   await generateDrafts(state, { provider: ctx.provider, profile: ctx.profile, max: ctx.settings.maxDrafts, now });
+
+  if (!ctx.settings.dryRun && ctx.env.TNC_API_TOKEN && Object.values(state.submissions).some((x) => x.state === "sent")) {
+    await refreshPending(state, tncSinkFromEnv(ctx.env, false)).catch((e: unknown) =>
+      log.warn(`tnc: refresh failed (${e instanceof Error ? e.name : "error"})`),
+    );
+  }
 
   const picks = selectDigest(state, ctx.profile);
   let sent = 0;

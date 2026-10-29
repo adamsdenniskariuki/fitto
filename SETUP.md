@@ -107,6 +107,24 @@ Statuses: `saved`, `applied`, `interview`, `offer`, `rejected`, `no` (hide it), 
 
 A job reappears in the digest only if its status changes. Locally, with `FITTO_STATE_KEY` exported, you can run `pnpm fitto status <ids> <status>` and `pnpm fitto tracker`.
 
+## 7. Send jobs to The Next Chapter (optional)
+
+Fitto never sends anything on its own. Only the job ids you pass are sent.
+
+1. Create an API token in your The Next Chapter account, then store it:
+   ```sh
+   gh secret set TNC_API_TOKEN -R adamsdenniskariuki/fitto      # paste when prompted
+   ```
+2. Send one or more jobs by id. They're processed one at a time, polling politely until TNC accepts or rejects each:
+   ```sh
+   gh workflow run fitto-tnc.yml -R adamsdenniskariuki/fitto -f ids=1bdaa62bca,7f3e0c11aa
+   gh workflow run fitto-tnc.yml -R adamsdenniskariuki/fitto -f ids=1bdaa62bca -f dry_run=true   # test: sends nothing
+   gh workflow run fitto-tnc.yml -R adamsdenniskariuki/fitto -f ids=refresh                      # re-check in-progress ones
+   ```
+3. Results (Sent, Accepted or Failed) are recorded in the encrypted state, and the log only shows `job 1/2: accepted`. Already-accepted jobs are skipped, and reruns reuse the same Idempotency-Key (a hash of the job URL), so TNC never receives duplicates.
+
+If you rotate the TNC token, jobs still "in progress" can't be re-checked with the new token (TNC limitation). Send them again; the idempotency key prevents duplicates.
+
 ## Secrets checklist
 
 | Secret | Required | |
@@ -118,3 +136,4 @@ A job reappears in the digest only if its status changes. Locally, with `FITTO_S
 | `RESEND_API_KEY` | one of these two | Resend |
 | `OPENAI_API_KEY` | no | Optional scorer |
 | `FITTO_COMPANIES` | no | Private watchlist |
+| `TNC_API_TOKEN` | no | Only to send selected jobs to The Next Chapter |
