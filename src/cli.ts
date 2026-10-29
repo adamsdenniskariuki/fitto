@@ -10,6 +10,7 @@ import { buildTasks, fetchAll } from "./sources/index.js";
 import { updateState } from "./state.js";
 import { applyStatus, parseIds, STATUS_VALUES } from "./status.js";
 import { renderTracker } from "./tracker.js";
+import { FEATURE_RE, fewShotExamples, learnWeights, MAX_TOTAL, renderLearned } from "./learn.js";
 import { runWeekly } from "./weekly.js";
 
 const USAGE = `Usage: pnpm fitto <command>
@@ -19,6 +20,8 @@ Commands:
   weekly [--force]        Email the weekly summary
   status <ids> <status>   Set status for comma-separated job ids: ${STATUS_VALUES.join(", ")}
   tracker [--all]         Decrypt the state and print your job tracker (local use only)
+  learned [show|set <feature> <points>|unset <feature>|reset]
+                          Show or edit learned boosts/penalties (local use only)
   fetch                   Fetch and normalise jobs; prints per-source counts only
   eval                    Score the golden fixtures with the configured provider and check bands
   keygen                  Print a new random key (FITTO_STATE_KEY / FITTO_SITE_PASSPHRASE)
@@ -44,6 +47,40 @@ async function cmdStatus(idsArg?: string, value?: string): Promise<number> {
   });
   log.info(`status: ${res.updated} updated, ${res.unknown} unknown id(s)`);
   return res.unknown && !res.updated ? 1 : 0;
+}
+
+async function cmdLearned(args: string[]): Promise<number> {
+  if (inActions()) {
+    log.error("learned prints personal data; run it locally, not in Actions");
+    return 2;
+  }
+  const [sub = "show", feature, value] = args;
+  if (sub === "show") {
+    const { state } = await store().load();
+    console.log(renderLearned({ ...state.learned, auto: learnWeights(state) }, fewShotExamples(state)));
+    return 0;
+  }
+  if ((sub === "set" || sub === "unset") && (!feature || !FEATURE_RE.test(feature))) {
+    console.error("feature must look like company:acme, title:backend or skill:go");
+    return 2;
+  }
+  const points = Number(value);
+  if (sub === "set" && (!Number.isFinite(points) || Math.abs(points) > MAX_TOTAL)) {
+    console.error(`points must be a number between -${MAX_TOTAL} and ${MAX_TOTAL}`);
+    return 2;
+  }
+  if (!["set", "unset", "reset"].includes(sub)) {
+    console.error("Usage: pnpm fitto learned [show | set <feature> <points> | unset <feature> | reset]");
+    return 2;
+  }
+  await updateState(store(), (s) => {
+    if (sub === "set") s.learned.manual[feature!] = points;
+    if (sub === "unset") delete s.learned.manual[feature!];
+    if (sub === "reset") s.learned.manual = {};
+    s.learned.updatedAt = new Date().toISOString();
+  });
+  log.info(`learned: ${sub} saved (applies from the next run)`);
+  return 0;
 }
 
 async function cmdTracker(all: boolean): Promise<number> {
@@ -93,6 +130,8 @@ export async function main(argv: string[]): Promise<number> {
       return cmdStatus(argv[1], argv[2]);
     case "tracker":
       return cmdTracker(argv.includes("--all"));
+    case "learned":
+      return cmdLearned(argv.slice(1));
     case "fetch":
       await cmdFetch();
       return 0;

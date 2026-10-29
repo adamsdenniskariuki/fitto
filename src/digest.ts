@@ -55,6 +55,7 @@ function jobText(r: JobRecord, i: number, state: State, links: Links): string {
     `   ${where(job)} · salary: ${formatSalary(job)}`,
     `   Why: ${s.fit_summary}`,
   ];
+  if (s.adjustment) lines.push(`   Learned: ${s.adjustment > 0 ? "+" : ""}${s.adjustment} from your feedback (${(s.adjustReasons ?? []).join(", ")})`);
   if (s.matched_skills.length) lines.push(`   Matched: ${s.matched_skills.join(", ")}`);
   if (s.gaps.length) lines.push(`   Gaps: ${s.gaps.join("; ")}`);
   if (s.red_flags.length) lines.push(`   Red flags: ${s.red_flags.join("; ")}`);
@@ -88,7 +89,7 @@ function jobHtml(r: JobRecord, state: State, links: Links): string {
 <span style="float:right;font-weight:bold">${s.final}/100</span></div>
 <div style="color:#555">${esc(where(job))} · salary: ${esc(formatSalary(job))}${r.status !== "new" ? ` · <i>${esc(r.status)}</i>` : ""}${job.attribution ? ` · via ${esc(job.attribution)}` : ""}</div>
 <div style="margin-top:4px">${esc(s.fit_summary)}</div>
-${list("Matched", s.matched_skills)}${list("Gaps", s.gaps)}${list("Red flags", s.red_flags)}
+${s.adjustment ? `<div style="color:#555"><b>Learned:</b> ${s.adjustment > 0 ? "+" : ""}${s.adjustment} from your feedback (${esc((s.adjustReasons ?? []).join(", "))})</div>` : ""}${list("Matched", s.matched_skills)}${list("Gaps", s.gaps)}${list("Red flags", s.red_flags)}
 ${prep ? `<div><a href="${esc(prep)}">Interview prep on DevPREP</a></div>` : ""}${draft}
 <div style="margin-top:6px;color:#555">Id <code>${esc(job.id)}</code>. Mark it: ${cmd("saved")} · <code>applied</code> · <code>no</code> · <code>up</code> · <code>down</code>
 (or use <a href="${esc(statusWorkflow(links.repo))}">Run workflow</a> on the Actions page)</div>
