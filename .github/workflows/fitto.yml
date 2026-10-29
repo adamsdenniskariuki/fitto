@@ -1,0 +1,33 @@
+name: fitto
+
+on:
+  schedule:
+    - cron: "0 5 * * *" # daily, 08:00 Nairobi
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fitto-state
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Fetch jobs (counts only)
+        env:
+          FITTO_COMPANIES: ${{ secrets.FITTO_COMPANIES }}
+          FITTO_STATE_KEY: ${{ secrets.FITTO_STATE_KEY }}
+        run: pnpm fitto fetch
