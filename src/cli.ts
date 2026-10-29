@@ -7,11 +7,12 @@ import { HttpClient } from "./http.js";
 import { inActions, log } from "./log.js";
 import { loadCompanies, loadSettings } from "./config.js";
 import { buildTasks, fetchAll } from "./sources/index.js";
-import { updateState } from "./state.js";
+import { saveState, stateStoreFromEnv, updateState } from "./state.js";
 import { applyStatus, parseIds, STATUS_VALUES } from "./status.js";
 import { renderTracker } from "./tracker.js";
 import { FEATURE_RE, fewShotExamples, learnWeights, MAX_TOTAL, renderLearned } from "./learn.js";
 import { runWeekly } from "./weekly.js";
+import { refreshPending, submitJobs, tncSinkFromEnv } from "./submit.js";
 
 const USAGE = `Usage: pnpm fitto <command>
 
@@ -22,6 +23,7 @@ Commands:
   tracker [--all]         Decrypt the state and print your job tracker (local use only)
   learned [show|set <feature> <points>|unset <feature>|reset]
                           Show or edit learned boosts/penalties (local use only)
+  tnc <ids> | tnc refresh Send the selected jobs to The Next Chapter (never automatic), or re-check pending ones
   fetch                   Fetch and normalise jobs; prints per-source counts only
   eval                    Score the golden fixtures with the configured provider and check bands
   keygen                  Print a new random key (FITTO_STATE_KEY / FITTO_SITE_PASSPHRASE)
@@ -47,6 +49,31 @@ async function cmdStatus(idsArg?: string, value?: string): Promise<number> {
   });
   log.info(`status: ${res.updated} updated, ${res.unknown} unknown id(s)`);
   return res.unknown && !res.updated ? 1 : 0;
+}
+
+async function cmdTnc(arg?: string): Promise<number> {
+  if (!arg) {
+    console.error("Usage: pnpm fitto tnc <id[,id...]> | refresh");
+    return 2;
+  }
+  const dryRun = loadSettings().dryRun;
+  const sink = tncSinkFromEnv(process.env, dryRun);
+  // A dry run in Actions reads the real encrypted state (read-only) so ids resolve.
+  const st = dryRun && process.env.GITHUB_ACTIONS && process.env.FITTO_STATE_KEY ? stateStoreFromEnv(process.env) : store();
+  const { state, version } = await st.load();
+  const at = new Date().toISOString();
+  if (arg === "refresh") {
+    await refreshPending(state, sink, 50);
+  } else {
+    const s = await submitJobs(state, parseIds(arg), sink, { record: !dryRun });
+    log.info(
+      `tnc: ${s.requested} requested: ${s.accepted} accepted, ${s.sent} sent (in progress), ${s.failed} failed, ${s.skipped} skipped, ${s.unknown} unknown${dryRun ? " (dry run: nothing sent)" : ""}`,
+    );
+    state.runs.push({ at, kind: "tnc", sent: s.accepted + s.sent });
+    if (s.unknown === s.requested) return 1;
+  }
+  if (!dryRun) await saveState(st, state, version);
+  return 0;
 }
 
 async function cmdLearned(args: string[]): Promise<number> {
@@ -132,6 +159,8 @@ export async function main(argv: string[]): Promise<number> {
       return cmdTracker(argv.includes("--all"));
     case "learned":
       return cmdLearned(argv.slice(1));
+    case "tnc":
+      return cmdTnc(argv[1]);
     case "fetch":
       await cmdFetch();
       return 0;
