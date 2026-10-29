@@ -24,14 +24,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
       - name: Run Fitto (logs show aggregate counts only)
         env:
           FITTO_PROFILE: ${{ secrets.FITTO_PROFILE }}
@@ -41,6 +34,14 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           FITTO_MODEL: ${{ vars.FITTO_MODEL }}
           FITTO_MAX_LLM_CALLS: ${{ vars.FITTO_MAX_LLM_CALLS }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FITTO_EMAIL_TO: ${{ secrets.FITTO_EMAIL_TO }}
+          FITTO_EMAIL_FROM: ${{ vars.FITTO_EMAIL_FROM }}
+          FITTO_SITE_URL: ${{ vars.FITTO_SITE_URL }}
           DRY_INPUT: ${{ inputs.dry_run }}
         run: |
           if [ "$DRY_INPUT" = "true" ] || [ -z "$FITTO_PROFILE" ] || [ -z "$FITTO_STATE_KEY" ]; then

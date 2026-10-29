@@ -2,7 +2,7 @@
 
 Fitto is a daily agent that finds and scores jobs that fit you. It runs on GitHub Actions in this public repository, and none of your personal data is ever committed or published.
 
-> 🚧 Under construction: step 2 of 6 (fetching and scoring). Full docs land with later steps.
+> 🚧 Under construction: step 3 of 6 (fetching, scoring, email digests). See [SETUP.md](SETUP.md) to configure it. Full docs land with later steps.
 
 ## Quick start (local)
 
@@ -41,3 +41,21 @@ Job descriptions are treated as untrusted input: the prompt tells the model to i
 ## State and privacy
 
 All state (seen jobs, scores, statuses) is gzip-compressed JSON encrypted with AES-256-GCM, using a key derived via scrypt from the `FITTO_STATE_KEY` secret. It is stored as `state.enc` on the orphan `fitto-state` branch, one commit that is force-pushed with a lease; concurrent writers merge and retry. Workflow logs only print aggregate counts. Without `FITTO_PROFILE` and `FITTO_STATE_KEY` the workflow runs in dry-run mode.
+## Digests and statuses
+
+- **Daily email** (05:00 UTC) with the top `digest.top_n` jobs scoring at least `digest.min_score`. Each entry shows the title, company, location, salary, score, why it fits, gaps, red flags, the link (with source attribution), DevPREP interview prep for supported companies, and the status command. A job is never repeated unless its status changes.
+- **Weekly email** (Mondays) with run counts, pipeline totals, status changes and the best new jobs.
+- **Statuses**: `gh workflow run fitto-status.yml -f ids=<id> -f status=applied`, or run the **fitto-status** workflow from the Actions page. Ids are opaque keyed hashes.
+- Delivery goes through the `src/sinks/` interface (`Sink.send(message)`). Email (SMTP or Resend) is built in, and other channels plug in the same way.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `pnpm fitto run` | Daily run: fetch, filter, score, email the digest, save state |
+| `pnpm fitto weekly [--force]` | Weekly summary |
+| `pnpm fitto status <ids> <status>` | Set `saved`/`applied`/`interview`/`offer`/`rejected`/`no`/`new` or `up`/`down` |
+| `pnpm fitto tracker [--all]` | Decrypt the state and print your tracker (local only; refuses to run in Actions) |
+| `pnpm fitto fetch` | Fetch only; per-source counts |
+| `pnpm fitto eval` | Golden-set check against the configured scorer |
+| `pnpm fitto keygen` | Random key for `FITTO_STATE_KEY` |

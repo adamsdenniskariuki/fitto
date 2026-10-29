@@ -3,6 +3,8 @@ import { HttpClient } from "./http.js";
 import { log } from "./log.js";
 import { ingest } from "./pipeline.js";
 import { scoreJobs } from "./score.js";
+import { markDigested, renderDigest, selectDigest } from "./digest.js";
+import { deliver } from "./sinks/index.js";
 import { buildTasks, fetchAll } from "./sources/index.js";
 import { pruneState, saveState } from "./state.js";
 
@@ -11,6 +13,7 @@ export interface DailyResult {
   passed: number;
   newJobs: number;
   scored: number;
+  sent: number;
 }
 
 /** Daily run: fetch, filter, score, persist. Logs aggregate counts only. */
@@ -39,9 +42,17 @@ export async function runDaily(ctx: Context, http = new HttpClient()): Promise<D
     `scoring (${ctx.scorer.name}): ${s.calls} calls, ${s.cacheHits} cached, ${s.failures} failed, ${s.deferred} deferred${s.rateLimited ? " (rate limited)" : ""}`,
   );
 
+  const picks = selectDigest(state, ctx.profile);
+  let sent = 0;
+  if (!picks.length) log.info("digest: no new matches today");
+  else if (await deliver(ctx.sinks, renderDigest(picks, state, ctx.links, now))) {
+    markDigested(picks, now);
+    sent = picks.length;
+  }
+
   pruneState(state, now.getTime());
-  state.runs.push({ at: now.toISOString(), kind: "daily", fetched: jobs.length, newJobs: stats.newJobs, scored: s.calls });
+  state.runs.push({ at: now.toISOString(), kind: "daily", fetched: jobs.length, newJobs: stats.newJobs, scored: s.calls, sent });
   await saveState(ctx.store, state, version);
   log.info("state saved");
-  return { fetched: jobs.length, passed: stats.passed, newJobs: stats.newJobs, scored: s.calls };
+  return { fetched: jobs.length, passed: stats.passed, newJobs: stats.newJobs, scored: s.calls, sent };
 }
