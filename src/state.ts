@@ -23,6 +23,8 @@ export interface ScoredInfo extends ScoreResult {
   /** Score after learned adjustments. */
   final: number;
   adjustment: number;
+  /** Learned features behind the adjustment, e.g. "company:acme +3". */
+  adjustReasons?: string[];
   provider: string;
   cacheKey: string;
   scoredAt: string;

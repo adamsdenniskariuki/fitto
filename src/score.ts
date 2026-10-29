@@ -160,7 +160,7 @@ export interface ScoreRunOptions {
   maxCalls: number;
   examples?: FewShot[];
   /** Learned adjustment hook (feedback learning). */
-  adjust?: (job: Job, result: ScoreResult) => number;
+  adjust?: (job: Job, result: ScoreResult) => number | { points: number; reasons: string[] };
   now?: Date;
 }
 
@@ -185,8 +185,10 @@ export async function scoreJobs(state: State, ids: string[], opts: ScoreRunOptio
   const adjust = opts.adjust ?? (() => 0);
   const apply = (id: string, key: string, r: ScoreResult, provider: string) => {
     const rec = state.jobs[id]!;
-    const adjustment = Math.round(adjust(rec.job, r));
-    rec.score = { ...r, final: clamp(r.score + adjustment), adjustment, provider, cacheKey: key, scoredAt: now };
+    const a = adjust(rec.job, r);
+    const adjustment = Math.round(typeof a === "number" ? a : a.points);
+    const adjustReasons = typeof a === "number" ? undefined : a.reasons;
+    rec.score = { ...r, final: clamp(r.score + adjustment), adjustment, adjustReasons, provider, cacheKey: key, scoredAt: now };
   };
 
   const todo: { id: string; key: string; rank: number }[] = [];

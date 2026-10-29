@@ -5,6 +5,7 @@ import { ingest } from "./pipeline.js";
 import { scoreJobs } from "./score.js";
 import { markDigested, renderDigest, selectDigest } from "./digest.js";
 import { deliver } from "./sinks/index.js";
+import { adjustmentFor, fewShotExamples, learnWeights } from "./learn.js";
 import { buildTasks, fetchAll } from "./sources/index.js";
 import { pruneState, saveState } from "./state.js";
 
@@ -32,10 +33,13 @@ export async function runDaily(ctx: Context, http = new HttpClient()): Promise<D
   const { ids, stats } = ingest(state, jobs, ctx.profile, now);
   log.info(`hard filters: ${stats.passed} passed, ${stats.newJobs} new`);
 
+  state.learned.auto = learnWeights(state);
   const s = await scoreJobs(state, ids, {
     scorer: ctx.scorer,
     profile: ctx.profile,
     maxCalls: ctx.settings.maxLlmCalls,
+    examples: fewShotExamples(state),
+    adjust: (job, r) => adjustmentFor(state.learned, job, r),
     now,
   });
   log.info(

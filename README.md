@@ -2,7 +2,7 @@
 
 Fitto is a daily agent that finds and scores jobs that fit you. It runs on GitHub Actions in this public repository, and none of your personal data is ever committed or published.
 
-> 🚧 Under construction: step 3 of 6 (fetching, scoring, email digests). See [SETUP.md](SETUP.md) to configure it. Full docs land with later steps.
+> 🚧 Under construction: step 4 of 6 (fetching, scoring, email digests, feedback learning). See [SETUP.md](SETUP.md) to configure it. Full docs land with later steps.
 
 ## Quick start (local)
 
@@ -56,6 +56,12 @@ All state (seen jobs, scores, statuses) is gzip-compressed JSON encrypted with A
 | `pnpm fitto weekly [--force]` | Weekly summary |
 | `pnpm fitto status <ids> <status>` | Set `saved`/`applied`/`interview`/`offer`/`rejected`/`no`/`new` or `up`/`down` |
 | `pnpm fitto tracker [--all]` | Decrypt the state and print your tracker (local only; refuses to run in Actions) |
+| `pnpm fitto learned [show|set <feature> <points>|unset <feature>|reset]` | Show or edit learned boosts and penalties (local only) |
 | `pnpm fitto fetch` | Fetch only; per-source counts |
 | `pnpm fitto eval` | Golden-set check against the configured scorer |
 | `pnpm fitto keygen` | Random key for `FITTO_STATE_KEY` |
+## Feedback learning
+
+Thumbs (`up`/`down`) and statuses become signals: `up`, `applied`, `interview` and `offer` count +1, `saved` +0.5, and `down` and `no` −1. Employer rejections are neutral. Each job contributes features: `company:<name>`, `title:<word>` and `skill:<matched skill>`. A feature's weight is its smoothed average signal (capped at ±8 points), and a job's total adjustment is capped at ±15. Your most recent liked and disliked jobs are also passed to the LLM as few-shot examples.
+
+Everything is transparent: digests show `Learned: +5 from your feedback (company:acme +3.3, …)`, and `pnpm fitto learned` prints every weight and example. Use `pnpm fitto learned set skill:go 6` to pin a weight. Manual values override learned ones, and `unset` or `reset` removes them.
