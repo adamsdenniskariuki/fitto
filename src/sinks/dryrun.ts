@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { inActions, log } from "../log.js";
+import { log } from "../log.js";
 import type { Message, Sink } from "./types.js";
 
 /**
@@ -15,7 +15,7 @@ export class DryRunSink implements Sink {
     private readonly outDir = "out",
   ) {}
   async send(m: Message): Promise<void> {
-    if (inActions() || this.env.GITHUB_STEP_SUMMARY) {
+    if (this.env.GITHUB_ACTIONS === "true" || this.env.GITHUB_STEP_SUMMARY) {
       if (this.env.GITHUB_STEP_SUMMARY) appendFileSync(this.env.GITHUB_STEP_SUMMARY, `${m.redacted}\n`);
       log.info(`dry run: ${m.kind} message with ${m.count} jobs (redacted summary only)`);
       return;
