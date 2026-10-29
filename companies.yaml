@@ -1,0 +1,34 @@
+# Fitto watchlist. This file is PUBLIC.
+# To keep your watchlist private, put the same YAML into the FITTO_COMPANIES
+# Actions secret: it overrides this file.
+#
+# ats: greenhouse | lever | ashby | workable
+# slug: the board name from the company's public careers URL, e.g.
+#   boards.greenhouse.io/<slug>, jobs.lever.co/<slug>, jobs.ashbyhq.com/<slug>,
+#   apply.workable.com/<slug>
+companies:
+  - { name: Stripe, ats: greenhouse, slug: stripe }
+  - { name: Cloudflare, ats: greenhouse, slug: cloudflare }
+  - { name: GitLab, ats: greenhouse, slug: gitlab }
+  - { name: Airbnb, ats: greenhouse, slug: airbnb }
+  - { name: Figma, ats: greenhouse, slug: figma }
+  - { name: Palantir, ats: lever, slug: palantir }
+  - { name: Spotify, ats: lever, slug: spotify }
+  - { name: Linear, ats: ashby, slug: linear }
+  - { name: Ramp, ats: ashby, slug: ramp }
+  - { name: OpenAI, ats: ashby, slug: openai }
+  - { name: Supabase, ats: ashby, slug: supabase }
+
+# Public remote job boards that allow programmatic access.
+boards:
+  # Remotive's robots.txt currently disallows /api, and Fitto respects robots.txt,
+  # so this stays off (enabling it just logs a skip until their robots.txt allows it).
+  remotive: { enabled: false, category: software-dev }
+  weworkremotely:
+    enabled: true
+    feeds: [remote-programming-jobs, remote-full-stack-programming-jobs, remote-back-end-programming-jobs]
+  remoteok: { enabled: true }
+  hn: { enabled: true, maxComments: 400 }
+
+settings:
+  max_age_days: 30

@@ -1,0 +1,46 @@
+# Template for the FITTO_PROFILE secret. Copy to profile.yaml (git-ignored)
+# for local runs, or store it as a secret:
+#   gh secret set FITTO_PROFILE < profile.yaml
+# NEVER commit your real profile: this repository is public.
+
+name: Jane Doe                 # used only in drafted cover notes
+email: jane@example.com        # optional; FITTO_EMAIL_TO decides where digests go
+headline: Senior backend engineer
+summary: |
+  Backend engineer with 8 years building payment and data platforms
+  in TypeScript and Go. Enjoys developer tooling and mentoring.
+
+skills: [typescript, node.js, go, postgres, aws, kubernetes, graphql]
+nice_to_have: [rust, terraform, fintech]
+years_experience: 8
+
+# Accepted seniority levels. Roles clearly at another level are filtered out.
+seniority: [senior, staff, lead]
+
+# A title must contain at least one of these (empty = accept all titles)...
+title_keywords: [engineer, developer, sre, platform]
+# ...and none of these.
+exclude_title_keywords: [intern, junior, sales, recruiter]
+
+locations:
+  remote: true                 # accept remote roles
+  onsite_cities: [Nairobi]     # accept on-site/hybrid roles in these cities
+  countries: [Kenya]
+  exclude: ["US only", "USA only", "United States only", "must be located in the US", "Canada only"]
+
+salary:
+  min: 60000                   # annual floor; only applied when a salary is published
+  currency: USD
+
+# Any of these appearing in a title/description rejects the job.
+dealbreakers: [gambling, "crypto casino", "security clearance"]
+
+digest:
+  min_score: 60
+  top_n: 10
+
+# Your CV in plain text/markdown. Used for scoring and for draft bullets.
+cv: |
+  ## Experience
+  - Acme Pay (2020–now), Senior Engineer: ...
+  - Beta Data (2016–2020), Engineer: ...

@@ -1,0 +1,12 @@
+node_modules/
+out/
+.fitto/
+*.log
+.env
+.env.*
+# Personal data must never be committed
+profile.yaml
+profile.local.yaml
+companies.local.yaml
+*.state.json
+*.state.enc
