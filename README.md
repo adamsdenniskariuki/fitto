@@ -2,7 +2,7 @@
 
 Fitto is a daily agent that finds and scores jobs that fit you. It runs on GitHub Actions in this public repository, and none of your personal data is ever committed or published.
 
-> 🚧 Under construction: step 4 of 6 (fetching, scoring, email digests, feedback learning). See [SETUP.md](SETUP.md) to configure it. Full docs land with later steps.
+> 🚧 Under construction: step 5 of 6 (fetching, scoring, email digests, feedback learning, drafts). See [SETUP.md](SETUP.md) to configure it. Full docs land with later steps.
 
 ## Quick start (local)
 
@@ -65,3 +65,8 @@ All state (seen jobs, scores, statuses) is gzip-compressed JSON encrypted with A
 Thumbs (`up`/`down`) and statuses become signals: `up`, `applied`, `interview` and `offer` count +1, `saved` +0.5, and `down` and `no` −1. Employer rejections are neutral. Each job contributes features: `company:<name>`, `title:<word>` and `skill:<matched skill>`. A feature's weight is its smoothed average signal (capped at ±8 points), and a job's total adjustment is capped at ±15. Your most recent liked and disliked jobs are also passed to the LLM as few-shot examples.
 
 Everything is transparent: digests show `Learned: +5 from your feedback (company:acme +3.3, …)`, and `pnpm fitto learned` prints every weight and example. Use `pnpm fitto learned set skill:go 6` to pin a weight. Manual values override learned ones, and `unset` or `reset` removes them.
+## Drafts and interview prep
+
+For the best matches (final score of 80 or more, at most `FITTO_MAX_DRAFTS` per run, default 3), Fitto writes **draft** tailored CV bullets and a short cover note. They're grounded in the CV in your profile and told never to invent facts. Without an LLM, Fitto writes a clearly marked `[Template]` skeleton instead. Drafts are stored in the encrypted state and shown in a collapsed "DRAFT" section of the email. **Fitto never applies to jobs or contacts employers.** Review and edit everything yourself.
+
+Jobs at Google, Meta, Amazon, Microsoft, Apple, Netflix, Stripe, Uber and Safaricom include a link to their [DevPREP](https://devprep.madebyfavor.com) company prep page.

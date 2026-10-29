@@ -6,6 +6,7 @@ import { scoreJobs } from "./score.js";
 import { markDigested, renderDigest, selectDigest } from "./digest.js";
 import { deliver } from "./sinks/index.js";
 import { adjustmentFor, fewShotExamples, learnWeights } from "./learn.js";
+import { generateDrafts } from "./drafts.js";
 import { buildTasks, fetchAll } from "./sources/index.js";
 import { pruneState, saveState } from "./state.js";
 
@@ -45,6 +46,8 @@ export async function runDaily(ctx: Context, http = new HttpClient()): Promise<D
   log.info(
     `scoring (${ctx.scorer.name}): ${s.calls} calls, ${s.cacheHits} cached, ${s.failures} failed, ${s.deferred} deferred${s.rateLimited ? " (rate limited)" : ""}`,
   );
+
+  await generateDrafts(state, { provider: ctx.provider, profile: ctx.profile, max: ctx.settings.maxDrafts, now });
 
   const picks = selectDigest(state, ctx.profile);
   let sent = 0;

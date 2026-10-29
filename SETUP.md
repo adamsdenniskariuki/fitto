@@ -76,6 +76,7 @@ If no provider is configured, runs still work but only write a redacted (counts 
 | `FITTO_COMPANIES` | secret | Private watchlist (same YAML as `companies.yaml`) that overrides the public file |
 | `FITTO_MODEL` | variable | Model id, e.g. `openai/gpt-4.1-mini` (GitHub Models) or `gpt-4.1-mini` (OpenAI) |
 | `FITTO_MAX_LLM_CALLS` | variable | Scoring calls per run (default 40) |
+| `FITTO_MAX_DRAFTS` | variable | Draft CV bullets and cover notes per run for scores of 80 or more (default 3) |
 | `FITTO_EMAIL_FROM` | variable | Sender address |
 
 Set variables with `gh variable set NAME --body value`.
