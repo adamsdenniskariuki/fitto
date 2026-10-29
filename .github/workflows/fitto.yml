@@ -34,6 +34,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           FITTO_MODEL: ${{ vars.FITTO_MODEL }}
           FITTO_MAX_LLM_CALLS: ${{ vars.FITTO_MAX_LLM_CALLS }}
+          FITTO_MAX_DRAFTS: ${{ vars.FITTO_MAX_DRAFTS }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}

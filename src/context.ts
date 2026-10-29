@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import YAML from "yaml";
 import { loadCompanies, loadProfile, loadSettings, ProfileSchema, type CompaniesConfig, type Profile, type Settings } from "./config.js";
-import { providerFromEnv } from "./llm/provider.js";
+import { providerFromEnv, type LlmProvider } from "./llm/provider.js";
 import { log, mask } from "./log.js";
 import { HeuristicScorer, LlmScorer, type Scorer } from "./score.js";
 import { sinksFromEnv, type Sink } from "./sinks/index.js";
@@ -17,6 +17,8 @@ export interface Context {
   companies: CompaniesConfig;
   store: StateStore;
   scorer: Scorer;
+  /** LLM used for drafts (undefined = template drafts). */
+  provider?: LlmProvider;
   /** Secret used to derive opaque job ids. */
   idSecret: string;
   sinks: Sink[];
@@ -38,8 +40,7 @@ export function stateStoreFor(env: NodeJS.ProcessEnv, dryRun: boolean): StateSto
   return stateStoreFromEnv(env);
 }
 
-export function scorerFromEnv(env: NodeJS.ProcessEnv): Scorer {
-  const provider = providerFromEnv(env);
+export function scorerFromEnv(env: NodeJS.ProcessEnv, provider = providerFromEnv(env)): Scorer {
   return provider ? new LlmScorer(provider) : new HeuristicScorer();
 }
 
@@ -49,13 +50,15 @@ export function buildContext(env = process.env): Context {
   mask(profile.name);
   mask(profile.email);
   mask(env.FITTO_EMAIL_TO);
+  const provider = providerFromEnv(env);
   return {
     env,
     settings,
     profile,
     companies: loadCompanies(env),
     store: stateStoreFor(env, settings.dryRun),
-    scorer: scorerFromEnv(env),
+    scorer: scorerFromEnv(env, provider),
+    provider,
     idSecret: settings.stateKey ?? DRY_RUN_KEY,
     sinks: sinksFromEnv(env, settings.dryRun),
     links: { repo: settings.repo, site: env.FITTO_SITE_URL || undefined },
