@@ -4,9 +4,15 @@ on:
   schedule:
     - cron: "0 5 * * *" # daily, 08:00 Nairobi
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (placeholder profile, no state writes, no delivery)"
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write # push the encrypted state to the fitto-state branch only
+  models: read # GitHub Models scoring via GITHUB_TOKEN
 
 concurrency:
   group: fitto-state
@@ -26,8 +32,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Fetch jobs (counts only)
+      - name: Run Fitto (logs show aggregate counts only)
         env:
-          FITTO_COMPANIES: ${{ secrets.FITTO_COMPANIES }}
+          FITTO_PROFILE: ${{ secrets.FITTO_PROFILE }}
           FITTO_STATE_KEY: ${{ secrets.FITTO_STATE_KEY }}
-        run: pnpm fitto fetch
+          FITTO_COMPANIES: ${{ secrets.FITTO_COMPANIES }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FITTO_MODEL: ${{ vars.FITTO_MODEL }}
+          FITTO_MAX_LLM_CALLS: ${{ vars.FITTO_MAX_LLM_CALLS }}
+          DRY_INPUT: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_INPUT" = "true" ] || [ -z "$FITTO_PROFILE" ] || [ -z "$FITTO_STATE_KEY" ]; then
+            echo "::notice::Dry run (requested, or FITTO_PROFILE / FITTO_STATE_KEY not set)"
+            export FITTO_DRY_RUN=1
+          fi
+          pnpm fitto run
