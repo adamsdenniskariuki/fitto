@@ -2,7 +2,7 @@
 
 Fitto is a daily agent that finds and scores jobs that fit you. It runs on GitHub Actions in this public repository, and none of your personal data is ever committed or published.
 
-> 🚧 Under construction: step 1 of 6 (scaffold and job fetching). Full docs land with later steps.
+> 🚧 Under construction: step 2 of 6 (fetching and scoring). Full docs land with later steps.
 
 ## Quick start (local)
 
@@ -28,3 +28,16 @@ Fitto uses public job feeds only, sends a clear User-Agent, respects `robots.txt
 | Remotive | `remotive.com/api/remote-jobs` | Off by default: its `robots.txt` currently disallows `/api` |
 
 Edit `companies.yaml` to choose companies, or set the `FITTO_COMPANIES` secret to keep your watchlist private.
+
+## Scoring
+
+1. **Hard filters** drop jobs that fail your title keywords, seniority, location/remote rules, salary floor (when the salary is known) or dealbreakers.
+2. **Pre-rank** with a cheap keyword match, so the limited LLM budget goes to the most promising jobs.
+3. **LLM score** 0–100 with structured JSON (fit summary, matched skills, gaps, red flags, confidence). The default is GitHub Models (`openai/gpt-4.1-mini`) through the workflow's `GITHUB_TOKEN` with `models: read`. Set `OPENAI_API_KEY` to use OpenAI instead, or `FITTO_LLM=heuristic` for the offline keyword scorer.
+4. **Caps and cache:** at most `FITTO_MAX_LLM_CALLS` (default 40) calls per run. Results are cached by job content and profile hash, unscored jobs are deferred to the next run, and a rate limit stops scoring for the run.
+
+Job descriptions are treated as untrusted input: the prompt tells the model to ignore any instructions inside a posting.
+
+## State and privacy
+
+All state (seen jobs, scores, statuses) is gzip-compressed JSON encrypted with AES-256-GCM, using a key derived via scrypt from the `FITTO_STATE_KEY` secret. It is stored as `state.enc` on the orphan `fitto-state` branch, one commit that is force-pushed with a lease; concurrent writers merge and retry. Workflow logs only print aggregate counts. Without `FITTO_PROFILE` and `FITTO_STATE_KEY` the workflow runs in dry-run mode.

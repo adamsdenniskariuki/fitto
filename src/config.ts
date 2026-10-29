@@ -123,8 +123,8 @@ export function loadSettings(env = process.env): Settings {
     dryRun: env.FITTO_DRY_RUN === "1" || env.FITTO_DRY_RUN === "true",
     repo: env.GITHUB_REPOSITORY ?? "adamsdenniskariuki/fitto",
     stateKey: env.FITTO_STATE_KEY?.trim() || undefined,
-    maxLlmCalls: Number(env.FITTO_MAX_LLM_CALLS ?? 40),
-    maxDrafts: Number(env.FITTO_MAX_DRAFTS ?? 3),
+    maxLlmCalls: Number(env.FITTO_MAX_LLM_CALLS || 40),
+    maxDrafts: Number(env.FITTO_MAX_DRAFTS || 3),
     model: env.FITTO_MODEL ?? "",
   };
 }

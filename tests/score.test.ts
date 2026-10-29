@@ -1,0 +1,166 @@
+import { describe, expect, it } from "vitest";
+import { ProfileSchema } from "../src/config.js";
+import { hardFilter } from "../src/filters.js";
+import { runGolden } from "../src/golden.js";
+import { githubModels, providerFromEnv, RateLimitError, type LlmProvider } from "../src/llm/provider.js";
+import { finalize } from "../src/normalize.js";
+import { buildMessages, cacheKey, HeuristicScorer, LlmScorer, parseScore, scoreJobs } from "../src/score.js";
+import { emptyState } from "../src/state.js";
+
+const profile = ProfileSchema.parse({
+  skills: ["typescript", "postgres"],
+  seniority: ["senior"],
+  title_keywords: ["engineer"],
+  locations: { remote: true, exclude: ["US only"] },
+  cv: "PRIVATE-CV-TEXT",
+});
+
+const job = (n: number, desc = "typescript postgres") =>
+  finalize({
+    source: "t",
+    sourceId: String(n),
+    company: `C${n}`,
+    title: "Senior Engineer",
+    location: "Remote",
+    remote: true,
+    url: "u",
+    description: desc,
+    tags: [],
+  });
+
+const good = JSON.stringify({
+  score: 82,
+  fit_summary: "Good",
+  matched_skills: ["typescript"],
+  gaps: [],
+  red_flags: [],
+  confidence: "high",
+});
+
+class MockProvider implements LlmProvider {
+  name = "mock";
+  calls = 0;
+  constructor(private readonly reply: (n: number) => string | Error) {}
+  async complete(): Promise<string> {
+    const r = this.reply(++this.calls);
+    if (r instanceof Error) throw r;
+    return r;
+  }
+}
+
+describe("golden set (heuristic scorer, LLM mocked)", () => {
+  it("all cases fall in their expected bands / filters", async () => {
+    const results = await runGolden(new HeuristicScorer());
+    const failures = results.filter((r) => !r.ok);
+    expect(failures).toEqual([]);
+    expect(results.length).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("hard filters", () => {
+  it("passes unknown seniority and rejects other levels", () => {
+    const j = job(1);
+    expect(hardFilter({ ...j, title: "Software Engineer" }, profile).pass).toBe(true);
+    expect(hardFilter({ ...j, title: "Staff Engineer" }, profile).reason).toBe("seniority");
+  });
+});
+
+describe("parseScore", () => {
+  it("extracts JSON from noisy output and clamps types", () => {
+    const r = parseScore('Sure!\n```json\n{"score":"77.6","fit_summary":"x","confidence":"HIGH?"}\n```');
+    expect(r.score).toBe(78);
+    expect(r.confidence).toBe("medium");
+    expect(r.matched_skills).toEqual([]);
+  });
+  it("rejects out-of-range scores", () => {
+    expect(() => parseScore('{"score":140}')).toThrow();
+  });
+});
+
+describe("prompt", () => {
+  it("contains profile and job, and warns about injected instructions", () => {
+    const m = buildMessages(job(1), profile, [{ title: "T", company: "X", verdict: "liked", note: "applied" }]);
+    expect(m[0]!.content).toMatch(/untrusted/);
+    expect(m[1]!.content).toContain("PRIVATE-CV-TEXT");
+    expect(m[1]!.content).toContain("LIKED");
+  });
+});
+
+describe("scoreJobs", () => {
+  const setup = (n: number) => {
+    const s = emptyState();
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const j = job(i, i === 0 ? "typescript postgres" : "cobol");
+      s.jobs[j.id] = { job: j, firstSeen: "x", lastSeen: "x", status: "new", history: [] };
+      ids.push(j.id);
+    }
+    return { s, ids };
+  };
+
+  it("caps calls, prioritises by prerank and caches", async () => {
+    const { s, ids } = setup(5);
+    const p = new MockProvider(() => good);
+    const stats = await scoreJobs(s, ids, { scorer: new LlmScorer(p), profile, maxCalls: 2 });
+    expect(stats).toMatchObject({ calls: 2, deferred: 3, cacheHits: 0 });
+    expect(s.jobs[ids[0]!]!.score?.final).toBe(82);
+
+    const again = await scoreJobs(s, ids, { scorer: new LlmScorer(p), profile, maxCalls: 10 });
+    expect(again.cacheHits).toBe(2);
+    expect(again.calls).toBe(3);
+    expect(p.calls).toBe(5);
+  });
+
+  it("applies learned adjustments and clamps", async () => {
+    const { s, ids } = setup(1);
+    await scoreJobs(s, ids, { scorer: new LlmScorer(new MockProvider(() => good)), profile, maxCalls: 1, adjust: () => 30 });
+    expect(s.jobs[ids[0]!]!.score).toMatchObject({ score: 82, adjustment: 30, final: 100 });
+  });
+
+  it("retries bad JSON once, then records a failure", async () => {
+    const { s, ids } = setup(2);
+    const p = new MockProvider((n) => (n <= 3 ? "not json" : good));
+    const stats = await scoreJobs(s, ids, { scorer: new LlmScorer(p), profile, maxCalls: 5 });
+    expect(stats.failures).toBe(1);
+    expect(p.calls).toBe(4);
+  });
+
+  it("stops on rate limit and defers the rest", async () => {
+    const { s, ids } = setup(3);
+    const p = new MockProvider(() => new RateLimitError("429"));
+    const stats = await scoreJobs(s, ids, { scorer: new LlmScorer(p), profile, maxCalls: 5 });
+    expect(stats.rateLimited).toBe(true);
+    expect(p.calls).toBe(1);
+    expect(stats.deferred).toBe(3);
+  });
+
+  it("cache key changes with the profile and the posting", () => {
+    const j = job(1);
+    const p2 = ProfileSchema.parse({ ...profile, skills: ["go"] });
+    expect(cacheKey(j, profile)).not.toBe(cacheKey(j, p2));
+    expect(cacheKey(j, profile)).not.toBe(cacheKey({ ...j, description: "changed" }, profile));
+  });
+});
+
+describe("providers", () => {
+  it("selects providers from env", () => {
+    expect(providerFromEnv({})).toBeUndefined();
+    expect(providerFromEnv({ GITHUB_TOKEN: "t" })?.name).toMatch(/^github-models:/);
+    expect(providerFromEnv({ GITHUB_TOKEN: "t", OPENAI_API_KEY: "k" })?.name).toMatch(/^openai:/);
+    expect(providerFromEnv({ GITHUB_TOKEN: "t", FITTO_LLM: "heuristic" })).toBeUndefined();
+  });
+  it("calls GitHub Models with JSON mode and maps 429", async () => {
+    let body: Record<string, unknown> = {};
+    let auth = "";
+    const ok = (async (_u: unknown, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body));
+      auth = new Headers(init?.headers).get("authorization") ?? "";
+      return new Response(JSON.stringify({ choices: [{ message: { content: good } }] }));
+    }) as typeof fetch;
+    await expect(githubModels("tok", undefined, ok).complete([{ role: "user", content: "hi" }])).resolves.toBe(good);
+    expect(body).toMatchObject({ model: "openai/gpt-4.1-mini", response_format: { type: "json_object" } });
+    expect(auth).toBe("Bearer tok");
+    const limited = (async () => new Response("", { status: 429 })) as typeof fetch;
+    await expect(githubModels("tok", undefined, limited).complete([])).rejects.toBeInstanceOf(RateLimitError);
+  });
+});
