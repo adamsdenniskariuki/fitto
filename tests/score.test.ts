@@ -4,7 +4,7 @@ import { hardFilter } from "../src/filters.js";
 import { runGolden } from "../src/golden.js";
 import { githubModels, providerFromEnv, RateLimitError, type LlmProvider } from "../src/llm/provider.js";
 import { finalize } from "../src/normalize.js";
-import { buildMessages, cacheKey, HeuristicScorer, LlmScorer, parseScore, scoreJobs } from "../src/score.js";
+import { buildMessages, cacheKey, failureReason, HeuristicScorer, LlmScorer, parseScore, scoreJobs } from "../src/score.js";
 import { emptyState } from "../src/state.js";
 
 const profile = ProfileSchema.parse({
@@ -175,5 +175,27 @@ describe("providers", () => {
     expect(auth).toBe("Bearer tok");
     const limited = (async () => new Response("", { status: 429 })) as typeof fetch;
     await expect(githubModels("tok", undefined, limited).complete([])).rejects.toBeInstanceOf(RateLimitError);
+  });
+});
+
+describe("scoring failure diagnostics", () => {
+  it("reports HTTP errors with API error code but no response details", async () => {
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ error: { code: "tokens_limit_reached", message: "secret details" } }), { status: 413 })) as typeof fetch;
+    const err = await githubModels("t", undefined, fetchImpl).complete([]).catch((e) => e);
+    expect(failureReason(err)).toBe("HTTP 413 (tokens_limit_reached)");
+  });
+  it("classifies non-JSON 200 responses", async () => {
+    const fetchImpl = (async () => new Response("OK", { status: 200 })) as typeof fetch;
+    const err = await githubModels("t", undefined, fetchImpl).complete([]).catch((e) => e);
+    expect(failureReason(err)).toBe("invalid response");
+  });
+  it("counts failures by reason in scoreJobs stats", async () => {
+    const state = emptyState();
+    const j = job(1);
+    state.jobs[j.id] = { job: j, firstSeen: "2026-01-01T00:00:00Z", lastSeen: "2026-01-01T00:00:00Z" } as never;
+    const scorer = { name: "x", score: async () => { throw new Error("x returned HTTP 500"); } };
+    const s = await scoreJobs(state, [j.id], { scorer, profile, maxCalls: 5 });
+    expect(s.errors).toEqual({ "HTTP 500": 1 });
   });
 });

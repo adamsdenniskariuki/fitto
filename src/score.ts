@@ -171,6 +171,19 @@ export interface ScoreRunStats {
   failures: number;
   deferred: number;
   rateLimited: boolean;
+  /** Failure counts by coarse, non-personal reason (e.g. "HTTP 413", "invalid response"). */
+  errors: Record<string, number>;
+}
+
+/** Maps a scoring error to a short category that is safe to log (never job or profile content). */
+export function failureReason(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  const http = /HTTP \d{3}(?: \([\w.-]+\))?/.exec(msg);
+  if (http) return http[0];
+  if (/non-JSON response|no JSON object|JSON/i.test(msg) || (e instanceof Error && e.name === "ZodError")) return "invalid response";
+  if (/empty response/.test(msg)) return "empty response";
+  if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) return "timeout";
+  return "network/other";
 }
 
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
@@ -181,7 +194,15 @@ const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
  */
 export async function scoreJobs(state: State, ids: string[], opts: ScoreRunOptions): Promise<ScoreRunStats> {
   const now = (opts.now ?? new Date()).toISOString();
-  const stats: ScoreRunStats = { candidates: 0, cacheHits: 0, calls: 0, failures: 0, deferred: 0, rateLimited: false };
+  const stats: ScoreRunStats = {
+    candidates: 0,
+    cacheHits: 0,
+    calls: 0,
+    failures: 0,
+    deferred: 0,
+    rateLimited: false,
+    errors: {},
+  };
   const adjust = opts.adjust ?? (() => 0);
   const apply = (id: string, key: string, r: ScoreResult, provider: string) => {
     const rec = state.jobs[id]!;
@@ -226,6 +247,8 @@ export async function scoreJobs(state: State, ids: string[], opts: ScoreRunOptio
       } else {
         stats.failures++;
         consecutiveFailures++;
+        const reason = failureReason(e);
+        stats.errors[reason] = (stats.errors[reason] ?? 0) + 1;
       }
     }
   }

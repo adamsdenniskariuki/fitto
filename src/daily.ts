@@ -45,7 +45,12 @@ export async function runDaily(ctx: Context, http = new HttpClient()): Promise<D
     now,
   });
   log.info(
-    `scoring (${ctx.scorer.name}): ${s.calls} calls, ${s.cacheHits} cached, ${s.failures} failed, ${s.deferred} deferred${s.rateLimited ? " (rate limited)" : ""}`,
+    `scoring (${ctx.scorer.name}): ${s.calls} calls, ${s.cacheHits} cached, ${s.failures} failed, ${s.deferred} deferred${s.rateLimited ? " (rate limited)" : ""}` +
+      (Object.keys(s.errors).length
+        ? `; failures: ${Object.entries(s.errors)
+            .map(([k, v]) => `${k} x${v}`)
+            .join(", ")}`
+        : ""),
   );
 
   await generateDrafts(state, { provider: ctx.provider, profile: ctx.profile, max: ctx.settings.maxDrafts, now });
