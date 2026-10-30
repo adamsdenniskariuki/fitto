@@ -61,6 +61,8 @@ export const ProfileSchema = z.object({
     .object({
       min: z.number().optional(),
       currency: z.string().default("USD"),
+      // Extra annual floors for other currencies, e.g. { EUR: 55000, GBP: 50000 }.
+      floors: z.record(z.string(), z.number()).default({}),
     })
     .optional(),
   dealbreakers: z.array(z.string()).default([]),

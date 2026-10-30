@@ -12,7 +12,7 @@ All commands below assume `-R adamsdenniskariuki/fitto` (or run them inside a cl
    cp profile.example.yaml profile.yaml
    ```
 
-   Key fields: `skills`, `nice_to_have`, `seniority`, `title_keywords`, `exclude_title_keywords`, `locations` (`remote`, `onsite_cities`, `countries`, `exclude` phrases such as "US only"), `salary.min`, `dealbreakers`, `digest.min_score` / `digest.top_n`, and `cv` (paste your CV as plain text; it is used for scoring and drafts).
+   Key fields: `skills`, `nice_to_have`, `seniority`, `title_keywords`, `exclude_title_keywords`, `locations` (`remote`, `onsite_cities`, `countries`, `exclude` phrases such as "US only"), `salary.min` (in `salary.currency`) plus optional `salary.floors` per other currency, e.g. `{ EUR: 55000, GBP: 47000 }`; salaries in currencies without a floor are not filtered, `dealbreakers`, `digest.min_score` / `digest.top_n`, and `cv` (paste your CV as plain text; it is used for scoring and drafts).
 
 2. Check it locally with no secrets needed:
 

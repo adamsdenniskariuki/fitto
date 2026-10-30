@@ -58,7 +58,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = { $: "USD", "€": "EUR", "£":
 export function parseSalary(text: string | undefined | null): Salary | undefined {
   if (!text) return undefined;
   const re =
-    /(?<cur1>[$€£]|USD|EUR|GBP|KES|CAD|AUD)?\s?(?<a>\d{2,3}(?:[,.]\d{3})*|\d+(?:\.\d+)?)\s?(?<ka>[kK])?\s?(?:-|–|—|to)\s?(?<cur2>[$€£]|USD|EUR|GBP|KES|CAD|AUD)?\s?(?<b>\d{2,3}(?:[,.]\d{3})*|\d+(?:\.\d+)?)\s?(?<kb>[kK])?\s?(?<cur3>USD|EUR|GBP|KES|CAD|AUD)?/;
+    /(?<cur1>[$€£]|USD|EUR|GBP|KES|CAD|AUD|AED|NOK)?\s?(?<a>\d{2,3}(?:[,.]\d{3})*|\d+(?:\.\d+)?)\s?(?<ka>[kK])?\s?(?:-|–|—|to)\s?(?<cur2>[$€£]|USD|EUR|GBP|KES|CAD|AUD|AED|NOK)?\s?(?<b>\d{2,3}(?:[,.]\d{3})*|\d+(?:\.\d+)?)\s?(?<kb>[kK])?\s?(?<cur3>USD|EUR|GBP|KES|CAD|AUD|AED|NOK)?/;
   const m = re.exec(text);
   if (!m?.groups) return undefined;
   const g = m.groups;

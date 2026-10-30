@@ -24,6 +24,19 @@ export function detectSeniority(title: string): string[] {
 
 const has = (hay: string, needle: string) => hay.toLowerCase().includes(needle.toLowerCase());
 
+/** Annual floor for a salary in `currency`: the matching `floors` entry, else `min` when the currency matches or is unknown. */
+export function salaryFloor(profile: Profile, currency?: string): number | undefined {
+  const sal = profile.salary;
+  if (!sal) return undefined;
+  const code = currency?.toUpperCase();
+  if (code) {
+    const extra = Object.entries(sal.floors ?? {}).find(([c]) => c.toUpperCase() === code);
+    if (extra) return extra[1];
+    return code === sal.currency.toUpperCase() ? sal.min : undefined;
+  }
+  return sal.min;
+}
+
 /** Cheap deterministic filters applied before any LLM call. */
 export function hardFilter(job: Job, profile: Profile): FilterResult {
   const title = job.title;
@@ -53,12 +66,11 @@ export function hardFilter(job: Job, profile: Profile): FilterResult {
     if (!places.some((c) => has(job.location, c))) return { pass: false, reason: "location" };
   }
 
-  const floor = profile.salary?.min;
-  if (floor && job.salary) {
+  if (job.salary) {
     const s = annualize(job.salary);
     const top = s.max ?? s.min;
-    const sameCurrency = !s.currency || !profile.salary?.currency || s.currency === profile.salary.currency;
-    if (top !== undefined && sameCurrency && top < floor) return { pass: false, reason: "salary" };
+    const floor = salaryFloor(profile, s.currency);
+    if (floor && top !== undefined && top < floor) return { pass: false, reason: "salary" };
   }
 
   const text = `${job.title}\n${job.company}\n${job.description}`;
