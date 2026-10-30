@@ -15,7 +15,7 @@ interface ChatCompletion {
   choices?: { message?: { content?: string } }[];
 }
 
-/** OpenAI-compatible chat completions client (GitHub Models and OpenAI share this shape). */
+/** OpenAI-compatible chat completions client (OpenAI and compatible APIs). */
 export class ChatCompletionsProvider implements LlmProvider {
   constructor(
     public readonly name: string,
@@ -62,17 +62,6 @@ export class ChatCompletionsProvider implements LlmProvider {
   }
 }
 
-export function githubModels(token: string, model = "openai/gpt-4.1-mini", fetchImpl?: typeof fetch): LlmProvider {
-  return new ChatCompletionsProvider(
-    `github-models:${model}`,
-    "https://models.github.ai/inference/chat/completions",
-    token,
-    model,
-    { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    fetchImpl,
-  );
-}
-
 export function openAi(token: string, model = "gpt-4.1-mini", fetchImpl?: typeof fetch): LlmProvider {
   return new ChatCompletionsProvider(
     `openai:${model}`,
@@ -85,20 +74,18 @@ export function openAi(token: string, model = "gpt-4.1-mini", fetchImpl?: typeof
 }
 
 /**
- * Picks a provider: FITTO_LLM=github|openai|heuristic forces one; otherwise
- * OPENAI_API_KEY if set, then GitHub Models via GITHUB_TOKEN, else none (heuristic scoring).
+ * Picks a provider: FITTO_LLM=openai|heuristic forces one; otherwise OpenAI when
+ * OPENAI_API_KEY is set, else none (offline heuristic scoring).
+ * (GitHub Models, the former free default, was retired on 2026-07-30.)
  */
 export function providerFromEnv(env = process.env): LlmProvider | undefined {
   const choice = env.FITTO_LLM?.toLowerCase();
   const model = env.FITTO_MODEL || undefined;
   if (choice === "heuristic") return undefined;
+  if (choice === "github") throw new Error("FITTO_LLM=github is no longer supported: GitHub Models was retired");
   if (choice === "openai" || (!choice && env.OPENAI_API_KEY)) {
     if (!env.OPENAI_API_KEY) throw new Error("FITTO_LLM=openai but OPENAI_API_KEY is not set");
     return openAi(env.OPENAI_API_KEY, model);
-  }
-  if (choice === "github" || (!choice && env.GITHUB_TOKEN)) {
-    if (!env.GITHUB_TOKEN) throw new Error("FITTO_LLM=github but GITHUB_TOKEN is not set");
-    return githubModels(env.GITHUB_TOKEN, model);
   }
   return undefined;
 }

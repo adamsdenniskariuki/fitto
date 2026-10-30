@@ -72,16 +72,18 @@ If no provider is configured, runs still work but only write a redacted (counts 
 
 | Name | Kind | Purpose |
 |---|---|---|
-| `OPENAI_API_KEY` | secret | Use OpenAI instead of GitHub Models for scoring |
+| `OPENAI_API_KEY` | secret | **Recommended.** Enables LLM scoring and drafts with OpenAI; without it Fitto uses the free keyword scorer |
 | `FITTO_COMPANIES` | secret | Private watchlist (same YAML as `companies.yaml`) that overrides the public file |
-| `FITTO_MODEL` | variable | Model id, e.g. `openai/gpt-4.1-mini` (GitHub Models) or `gpt-4.1-mini` (OpenAI) |
+| `FITTO_MODEL` | variable | Model id, e.g. `gpt-4.1-mini` (default) or `gpt-4.1` |
 | `FITTO_MAX_LLM_CALLS` | variable | Scoring calls per run (default 40) |
 | `FITTO_MAX_DRAFTS` | variable | Draft CV bullets and cover notes per run for scores of 80 or more (default 3) |
 | `FITTO_EMAIL_FROM` | variable | Sender address |
 
 Set variables with `gh variable set NAME --body value`.
 
-GitHub Models uses the workflow's built-in `GITHUB_TOKEN` (`models: read`), so it needs no extra secret. Free-tier rate limits apply, and Fitto stops scoring for the day when it hits them.
+To enable OpenAI scoring, create an API key at https://platform.openai.com/api-keys (add a small prepaid balance and, ideally, a monthly budget limit), then run `gh secret set OPENAI_API_KEY -R adamsdenniskariuki/fitto` and paste the key at the prompt. At the default caps (40 scoring + 3 draft calls a day) `gpt-4.1-mini` costs a few cents a day. If OpenAI rate-limits a run, Fitto stops scoring and defers the rest to the next run.
+
+(GitHub Models, the former free default, was retired on 30 July 2026.)
 
 ## 5. Run it
 
