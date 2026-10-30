@@ -5,7 +5,8 @@ import { runDaily } from "./daily.js";
 import { runGolden } from "./golden.js";
 import { HttpClient } from "./http.js";
 import { inActions, log } from "./log.js";
-import { loadCompanies, loadSettings } from "./config.js";
+import { loadCompanies, loadProfile, loadSettings } from "./config.js";
+import { buildSitePayload, encryptForSite, writeSiteExport } from "./site.js";
 import { buildTasks, fetchAll } from "./sources/index.js";
 import { saveState, stateStoreFromEnv, updateState } from "./state.js";
 import { applyStatus, parseIds, STATUS_VALUES } from "./status.js";
@@ -24,6 +25,7 @@ Commands:
   learned [show|set <feature> <points>|unset <feature>|reset]
                           Show or edit learned boosts/penalties (local use only)
   tnc <ids> | tnc refresh Send the selected jobs to The Next Chapter (never automatic), or re-check pending ones
+  site-export [path]      Write the passphrase-encrypted job list for the site (needs FITTO_SITE_PASSPHRASE)
   fetch                   Fetch and normalise jobs; prints per-source counts only
   eval                    Score the golden fixtures with the configured provider and check bands
   keygen                  Print a new random key (FITTO_STATE_KEY / FITTO_SITE_PASSPHRASE)
@@ -120,6 +122,25 @@ async function cmdTracker(all: boolean): Promise<number> {
   return 0;
 }
 
+async function cmdSiteExport(out = "_site/data/matches.enc.json"): Promise<number> {
+  const passphrase = process.env.FITTO_SITE_PASSPHRASE;
+  if (!passphrase) {
+    log.warn("site-export: FITTO_SITE_PASSPHRASE is not set; nothing written");
+    return 0;
+  }
+  let minScore = 60;
+  try {
+    minScore = loadProfile().digest.min_score;
+  } catch {
+    log.info("site-export: no profile available; using min score 60");
+  }
+  const { state } = await store().load();
+  const payload = buildSitePayload(state, { minScore, repo: process.env.GITHUB_REPOSITORY || "adamsdenniskariuki/fitto" });
+  writeSiteExport(out, encryptForSite(payload, passphrase));
+  log.info(`site-export: wrote encrypted list (${payload.jobs.length} jobs)`);
+  return 0;
+}
+
 async function cmdFetch(): Promise<void> {
   const settings = loadSettings();
   const companies = loadCompanies();
@@ -161,6 +182,8 @@ export async function main(argv: string[]): Promise<number> {
       return cmdLearned(argv.slice(1));
     case "tnc":
       return cmdTnc(argv[1]);
+    case "site-export":
+      return cmdSiteExport(argv[1]);
     case "fetch":
       await cmdFetch();
       return 0;

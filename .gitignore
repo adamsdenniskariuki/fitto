@@ -10,3 +10,4 @@ profile.local.yaml
 companies.local.yaml
 *.state.json
 *.state.enc
+_site/

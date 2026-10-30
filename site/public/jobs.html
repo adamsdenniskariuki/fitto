@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.github.com https://thenextchapter.dev; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>My jobs · Fitto</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/theme.js" defer></script>
+  <script src="assets/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span>Fitto</a>
+      <div class="nav-links">
+        <a href="./">Home</a>
+        <a href="./#how">How it works</a>
+        <a href="setup.html">Setup</a>
+        <a href="jobs.html" aria-current="page">My jobs</a>
+        <a href="https://github.com/adamsdenniskariuki/fitto">GitHub</a>
+        <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">◐</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section id="lock" class="lock-card" aria-labelledby="lock-title">
+      <h1 id="lock-title">My jobs</h1>
+      <p class="hint">Your matches are published here only in encrypted form. Enter your site passphrase to decrypt them in this browser. The passphrase is never sent anywhere.</p>
+      <form id="unlock-form" autocomplete="off">
+        <div class="field">
+          <label for="passphrase">Passphrase</label>
+          <input id="passphrase" type="password" autocomplete="current-password" required>
+        </div>
+        <label class="check"><input id="remember-pass" type="checkbox"> Remember on this device</label>
+        <p id="unlock-error" class="error" role="alert"></p>
+        <button class="btn btn-primary" type="submit">Unlock</button>
+      </form>
+      <p id="no-data" class="hint" hidden>No encrypted list has been published yet. Set <code>FITTO_SITE_PASSPHRASE</code> (see <a href="setup.html">Setup</a>) and wait for the next run.</p>
+    </section>
+
+    <section id="app" hidden aria-labelledby="app-title">
+      <div class="toolbar">
+        <h1 id="app-title" class="grow">My jobs</h1>
+        <span id="generated" class="hint"></span>
+        <button id="lock-btn" class="btn btn-small" type="button">Lock</button>
+      </div>
+
+      <div class="toolbar">
+        <label for="filter" class="sr-label">Show</label>
+        <select id="filter">
+          <option value="active">Active (hide dismissed)</option>
+          <option value="saved">Saved</option>
+          <option value="applied">Applied</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="sent">Sent to The Next Chapter</option>
+          <option value="all">All</option>
+        </select>
+        <input id="search" class="grow" type="search" placeholder="Filter by title, company or location" aria-label="Filter jobs">
+      </div>
+
+      <div class="selbar" role="region" aria-label="Selection">
+        <span id="sel-count" class="count" aria-live="polite">0 selected</span>
+        <button id="select-all" class="btn btn-small" type="button">Select all</button>
+        <button id="clear-sel" class="btn btn-small" type="button">Clear</button>
+        <button id="send-btn" class="btn btn-primary btn-small" type="button" disabled>Send selected to The Next Chapter</button>
+      </div>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <ol id="jobs" class="jobs"></ol>
+
+      <details id="settings" class="panel">
+        <summary>Settings</summary>
+        <fieldset>
+          <legend>Send mode</legend>
+          <label class="check"><input type="radio" name="mode" value="action" checked> GitHub Action (default): starts one <code>fitto-tnc</code> run with the selected ids</label>
+          <label class="check"><input type="radio" name="mode" value="direct"> Direct API: this browser posts to The Next Chapter (blocked by CORS today)</label>
+        </fieldset>
+        <div class="field">
+          <label for="gh-token">GitHub fine-grained token (Actions: Read and write, fitto repo only)</label>
+          <input id="gh-token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+          <label class="check"><input id="gh-remember" type="checkbox"> Remember on this device</label>
+          <p id="gh-state" class="hint"></p>
+        </div>
+        <div class="field">
+          <label for="tnc-token">The Next Chapter API token (Direct mode only)</label>
+          <input id="tnc-token" type="password" autocomplete="off" spellcheck="false">
+          <label class="check"><input id="tnc-remember" type="checkbox"> Remember on this device</label>
+          <p id="tnc-state" class="hint"></p>
+        </div>
+        <p class="hint">Tokens stay in this browser. Without "remember", they're kept only for this tab session. The GitHub token is sent only to api.github.com and the TNC token only to thenextchapter.dev. See <a href="setup.html">Setup</a> for how to create them.</p>
+        <div class="toolbar">
+          <button id="save-settings" class="btn btn-primary btn-small" type="button">Save settings</button>
+          <button id="clear-tokens" class="btn btn-small" type="button">Remove tokens</button>
+          <span id="settings-msg" class="hint" role="status"></span>
+        </div>
+      </details>
+
+      <details class="panel">
+        <summary>Data on this device</summary>
+        <p class="hint">Your saved, applied and dismissed marks and send results live only in this browser. Export them to move them to another device.</p>
+        <div class="toolbar">
+          <button id="export-btn" class="btn btn-small" type="button">Export statuses</button>
+          <label class="btn btn-small" for="import-file">Import statuses</label>
+          <input id="import-file" type="file" accept="application/json,.json" hidden>
+          <button id="forget-btn" class="btn btn-small" type="button">Forget this device</button>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>Fitto, part of the <a href="https://devprep.madebyfavor.com/">madebyfavor</a> family.</span>
+      <span><a href="https://github.com/adamsdenniskariuki/fitto">Source on GitHub</a></span>
+    </div>
+  </footer>
+</body>
+</html>

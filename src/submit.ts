@@ -30,12 +30,13 @@ export function tncSinkFromEnv(env: NodeJS.ProcessEnv, dryRun: boolean): Submiss
   return new TncSink({ token: env.TNC_API_TOKEN, baseUrl: env.TNC_BASE_URL || undefined });
 }
 
-function record(state: State, id: string, url: string, res: SubmissionResult, at: string): void {
+async function record(state: State, id: string, url: string, res: SubmissionResult, at: string): Promise<void> {
   const prev = state.submissions[id];
+  const key = await idempotencyKey(url);
   state.submissions[id] = {
     state: res.state,
     detail: res.detail,
-    key: idempotencyKey(url),
+    key,
     statusUrl: res.statusUrl ?? (res.state === "sent" ? prev?.statusUrl : undefined),
     at: prev?.at ?? at,
     updatedAt: at,
@@ -80,7 +81,7 @@ export async function submitJobs(state: State, ids: string[], sink: SubmissionSi
     }
     stats[res.state]++;
     log.info(`tnc: job ${pos}: ${res.state} (${res.detail})`);
-    if (opts.record !== false) record(state, id, r.job.url, res, now().toISOString());
+    if (opts.record !== false) await record(state, id, r.job.url, res, now().toISOString());
   }
   return stats;
 }
@@ -92,7 +93,7 @@ export async function refreshPending(state: State, sink: SubmissionSink, limit =
     if (n >= limit) break;
     if (s.state !== "sent" || !s.statusUrl || !state.jobs[id]) continue;
     const res = await sink.refresh(s.statusUrl);
-    record(state, id, state.jobs[id].job.url, res, now().toISOString());
+    await record(state, id, state.jobs[id].job.url, res, now().toISOString());
     n++;
   }
   if (n) log.info(`tnc: refreshed ${n} pending submission(s)`);

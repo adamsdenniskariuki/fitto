@@ -45,10 +45,12 @@ afterEach(() => {
 });
 
 describe("TNC helpers", () => {
-  it("derives a deterministic idempotency key per URL", () => {
-    expect(idempotencyKey(JOB_URL)).toBe(idempotencyKey(` ${JOB_URL} `));
-    expect(idempotencyKey(JOB_URL)).not.toBe(idempotencyKey(JOB_URL + "4"));
-    expect(idempotencyKey(JOB_URL)).toMatch(/^fitto-[0-9a-f]{32}$/);
+  it("derives a deterministic idempotency key per URL", async () => {
+    expect(await idempotencyKey(JOB_URL)).toBe(await idempotencyKey(` ${JOB_URL} `));
+    expect(await idempotencyKey(JOB_URL)).not.toBe(await idempotencyKey(JOB_URL + "4"));
+    expect(await idempotencyKey(JOB_URL)).toMatch(/^fitto-[0-9a-f]{32}$/);
+    const { createHash } = await import("node:crypto");
+    expect(await idempotencyKey(JOB_URL)).toBe("fitto-" + createHash("sha256").update(JOB_URL).digest("hex").slice(0, 32));
   });
 
   it("parses Retry-After and classifies statuses", () => {
@@ -76,7 +78,7 @@ describe("TncSink", () => {
     expect(JSON.parse(String(calls[0]!.init?.body))).toEqual({ url: JOB_URL });
     expect(header(calls[0]!, "authorization")).toBe("Bearer tok-secret");
     expect(header(calls[0]!, "content-type")).toBe("application/json");
-    expect(header(calls[0]!, "idempotency-key")).toBe(idempotencyKey(JOB_URL));
+    expect(header(calls[0]!, "idempotency-key")).toBe(await idempotencyKey(JOB_URL));
     expect(header(calls[1]!, "authorization")).toBe("Bearer tok-secret");
     expect(sleeps.every((ms) => ms >= 5000)).toBe(true);
     expect(sleeps).toHaveLength(2);
@@ -141,7 +143,7 @@ describe("submitJobs", () => {
     expect(stats).toMatchObject({ requested: 4, accepted: 1, failed: 1, skipped: 1, unknown: 1 });
     expect(calls.filter((c) => c.init?.method === "POST")).toHaveLength(2);
     expect(sleeps).toContain(3000);
-    expect(s.submissions.a1).toMatchObject({ state: "accepted", key: idempotencyKey(`${JOB_URL}?j=a1`), attempts: 1 });
+    expect(s.submissions.a1).toMatchObject({ state: "accepted", key: await idempotencyKey(`${JOB_URL}?j=a1`), attempts: 1 });
     expect(s.submissions.b2).toMatchObject({ state: "failed", detail: "http-400" });
     const all = logs.join("\n");
     expect(all).toContain("tnc: job 1/4: accepted");

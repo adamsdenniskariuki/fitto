@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Fitto · a private job-search agent</title>
+  <meta name="description" content="Fitto is an open-source job-search agent that runs on GitHub Actions, scores public job listings against your profile and emails you the best fits, privately.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span>Fitto</a>
+      <div class="nav-links">
+        <a href="./" aria-current="page">Home</a>
+        <a href="#how">How it works</a>
+        <a href="setup.html">Setup</a>
+        <a href="jobs.html">My jobs</a>
+        <a href="https://github.com/adamsdenniskariuki/fitto">GitHub</a>
+        <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">◐</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <p class="eyebrow">madebyfavor · open source</p>
+      <h1>Jobs that fit you, found while you sleep.</h1>
+      <p class="lead">Fitto is a small agent that runs on GitHub Actions. Every day it reads public job feeds, filters out the ones that don't fit, asks an AI model to score the rest against your profile, and emails you a short list with the reasons. Your profile and matches stay encrypted.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="setup.html">Set it up</a>
+        <a class="btn" href="jobs.html">Open my jobs</a>
+        <a class="btn btn-ghost" href="https://github.com/adamsdenniskariuki/fitto">View the code</a>
+      </div>
+    </section>
+
+    <section aria-labelledby="features">
+      <h2 id="features">What it does</h2>
+      <div class="grid">
+        <div class="card"><h3>Public feeds only</h3><p>Greenhouse, Lever, Ashby and Workable job boards for the companies you watch, plus Remotive, We Work Remotely, RemoteOK and HN "Who is hiring". It respects robots.txt and rate limits. No LinkedIn or Indeed scraping.</p></div>
+        <div class="card"><h3>Filters, then scores</h3><p>Hard filters for location, seniority, salary floor and dealbreakers come first. Then a model scores each job 0–100, with matched skills, gaps, red flags and a confidence level.</p></div>
+        <div class="card"><h3>Daily digest</h3><p>A short email with your top matches and why they fit. Jobs don't repeat unless their status changed. A weekly summary comes every Monday.</p></div>
+        <div class="card"><h3>Learns from you</h3><p>Saved, applied and dismissed jobs nudge future scores. Every learned boost is visible and editable.</p></div>
+        <div class="card"><h3>Drafts, never sends</h3><p>Strong matches (80 or more) get draft CV bullets and a short cover note. Fitto never applies or contacts employers for you.</p></div>
+        <div class="card"><h3>The Next Chapter</h3><p>Pick jobs on this site and send only the ones you selected to The Next Chapter, in one go.</p></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="how">
+      <h2 id="how">How it works</h2>
+      <ol class="steps">
+        <li><strong>Fetch.</strong> A scheduled GitHub Actions run collects public listings from the feeds you enable, then normalises and de-duplicates them.</li>
+        <li><strong>Filter.</strong> Cheap rules remove jobs in the wrong location, at the wrong seniority, below your salary floor, or that hit a dealbreaker.</li>
+        <li><strong>Score.</strong> The rest are scored against your profile by GitHub Models (or OpenAI if you choose). Calls are capped and cached, and results are adjusted by what Fitto has learned from your feedback.</li>
+        <li><strong>Deliver.</strong> You get an email digest. The same matches are encrypted with your passphrase and published here, where only your browser can unlock them.</li>
+        <li><strong>Act.</strong> Mark jobs as saved, applied or dismissed. Tick the ones you want and send them to The Next Chapter with one button and one confirmation.</li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="privacy">
+      <h2 id="privacy">Private by design</h2>
+      <div class="callout">
+        <p>The code is public; your data isn't. Your profile is a GitHub Actions secret. Fitto's state (jobs, scores, statuses and drafts) is encrypted with AES-256-GCM before it is stored. This site publishes only an encrypted file. Your browser decrypts it with your passphrase using WebCrypto, and the passphrase never leaves your device.</p>
+      </div>
+      <table>
+        <thead><tr><th>Data</th><th>Where it lives</th></tr></thead>
+        <tbody>
+          <tr><td>Profile / CV</td><td><code>FITTO_PROFILE</code> Actions secret</td></tr>
+          <tr><td>Jobs, scores, statuses, drafts</td><td>Encrypted <code>state.enc</code> on the <code>fitto-state</code> branch</td></tr>
+          <tr><td>Matches on this site</td><td><code>data/matches.enc.json</code>, encrypted with your site passphrase</td></tr>
+          <tr><td>Your statuses and tokens on this site</td><td>This browser's storage only (export or erase at any time)</td></tr>
+          <tr><td>What GitHub sees when you send to The Next Chapter</td><td>Opaque job ids only, never URLs or titles</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>Fitto, part of the <a href="https://devprep.madebyfavor.com/">madebyfavor</a> family.</span>
+      <span><a href="https://github.com/adamsdenniskariuki/fitto">Source on GitHub</a></span>
+    </div>
+  </footer>
+</body>
+</html>
