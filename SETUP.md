@@ -73,8 +73,10 @@ If no provider is configured, runs still work but only write a redacted (counts 
 | Name | Kind | Purpose |
 |---|---|---|
 | `OPENAI_API_KEY` | secret | **Recommended.** Enables LLM scoring and drafts with OpenAI; without it Fitto uses the free keyword scorer |
+| `ANTHROPIC_API_KEY` | secret | Use Claude for scoring and drafts (key from https://platform.claude.com, prepaid credit needed). Used when `OPENAI_API_KEY` isn't set, or when `FITTO_LLM=anthropic` |
+| `FITTO_LLM` | variable | Force a provider: `openai`, `anthropic` or `heuristic` |
 | `FITTO_COMPANIES` | secret | Private watchlist (same YAML as `companies.yaml`) that overrides the public file |
-| `FITTO_MODEL` | variable | Model id, e.g. `gpt-4.1-mini` (default) or `gpt-4.1` |
+| `FITTO_MODEL` | variable | Model id, e.g. `gpt-4.1-mini` (OpenAI default), `claude-haiku-5-5` (Claude default) or `claude-sonnet-5-5`. Must match the provider in use |
 | `FITTO_MAX_LLM_CALLS` | variable | Scoring calls per run (default 40) |
 | `FITTO_MAX_DRAFTS` | variable | Draft CV bullets and cover notes per run for scores of 80 or more (default 3) |
 | `FITTO_EMAIL_FROM` | variable | Sender address |

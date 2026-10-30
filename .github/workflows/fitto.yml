@@ -30,6 +30,8 @@ jobs:
           FITTO_STATE_KEY: ${{ secrets.FITTO_STATE_KEY }}
           FITTO_COMPANIES: ${{ secrets.FITTO_COMPANIES }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FITTO_LLM: ${{ vars.FITTO_LLM }}
           FITTO_MODEL: ${{ vars.FITTO_MODEL }}
           FITTO_MAX_LLM_CALLS: ${{ vars.FITTO_MAX_LLM_CALLS }}
           FITTO_MAX_DRAFTS: ${{ vars.FITTO_MAX_DRAFTS }}

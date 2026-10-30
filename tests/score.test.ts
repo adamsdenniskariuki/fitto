@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ProfileSchema } from "../src/config.js";
 import { hardFilter } from "../src/filters.js";
 import { runGolden } from "../src/golden.js";
-import { openAi, providerFromEnv, RateLimitError, type LlmProvider } from "../src/llm/provider.js";
+import { AnthropicProvider, openAi, providerFromEnv, RateLimitError, type LlmProvider } from "../src/llm/provider.js";
 import { finalize } from "../src/normalize.js";
 import { buildMessages, cacheKey, failureReason, HeuristicScorer, LlmScorer, parseScore, scoreJobs } from "../src/score.js";
 import { emptyState } from "../src/state.js";
@@ -242,5 +242,42 @@ describe("cache upgrade", () => {
     expect(state.jobs[j.id]!.score?.provider).toBe("openai:x");
     const again = await scoreJobs(state, [j.id], { scorer: llm, profile, maxCalls: 5 });
     expect(again).toMatchObject({ calls: 0, cacheHits: 1 });
+  });
+});
+describe("anthropic provider", () => {
+  it("is selected by FITTO_LLM or when only ANTHROPIC_API_KEY is set", () => {
+    expect(providerFromEnv({ ANTHROPIC_API_KEY: "a" })?.name).toBe("anthropic:claude-haiku-5-5");
+    expect(providerFromEnv({ ANTHROPIC_API_KEY: "a", OPENAI_API_KEY: "o" })?.name).toMatch(/^openai:/);
+    expect(providerFromEnv({ ANTHROPIC_API_KEY: "a", OPENAI_API_KEY: "o", FITTO_LLM: "anthropic" })?.name).toMatch(/^anthropic:/);
+    expect(providerFromEnv({ ANTHROPIC_API_KEY: "a", FITTO_LLM: "claude", FITTO_MODEL: "claude-sonnet-5-5" })?.name).toBe(
+      "anthropic:claude-sonnet-5-5",
+    );
+    expect(() => providerFromEnv({ FITTO_LLM: "anthropic" })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(() => providerFromEnv({ FITTO_LLM: "bogus" })).toThrow(/unknown FITTO_LLM/);
+  });
+  it("calls the Messages API with a system prompt and maps errors", async () => {
+    let body: Record<string, unknown> = {};
+    let headers = new Headers();
+    const ok = (async (_u: unknown, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body));
+      headers = new Headers(init?.headers);
+      return new Response(JSON.stringify({ content: [{ type: "text", text: good }] }));
+    }) as typeof fetch;
+    const p = new AnthropicProvider("key", undefined, ok);
+    await expect(
+      p.complete([
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ]),
+    ).resolves.toBe(good);
+    expect(body).toMatchObject({ model: "claude-haiku-5-5", system: "sys", messages: [{ role: "user", content: "hi" }] });
+    expect(headers.get("x-api-key")).toBe("key");
+    expect(headers.get("anthropic-version")).toBe("2023-06-01");
+    const limited = (async () => new Response("", { status: 529 })) as typeof fetch;
+    await expect(new AnthropicProvider("k", undefined, limited).complete([])).rejects.toBeInstanceOf(RateLimitError);
+    const bad = (async () =>
+      new Response(JSON.stringify({ type: "error", error: { type: "authentication_error", message: "x" } }), { status: 401 })) as typeof fetch;
+    const err = await new AnthropicProvider("k", undefined, bad).complete([]).catch((e) => e);
+    expect(failureReason(err)).toBe("HTTP 401 (authentication_error)");
   });
 });

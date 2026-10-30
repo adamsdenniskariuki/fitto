@@ -69,7 +69,7 @@ flowchart TD
 
 1. **Hard filters** drop jobs that fail your title keywords, seniority, location/remote rules, salary floor (when the salary is known) or dealbreakers.
 2. **Pre-rank** with a cheap keyword match, so the limited LLM budget goes to the most promising jobs.
-3. **LLM score** 0–100 with structured JSON (fit summary, matched skills, gaps, red flags, confidence). Fitto uses OpenAI (`gpt-4.1-mini` by default) when the `OPENAI_API_KEY` secret is set. Without it, Fitto falls back to the free offline keyword scorer (or force it with `FITTO_LLM=heuristic`). GitHub Models, the former free default, was retired on 30 July 2026.
+3. **LLM score** 0–100 with structured JSON (fit summary, matched skills, gaps, red flags, confidence). Fitto uses OpenAI (`gpt-4.1-mini` by default) when the `OPENAI_API_KEY` secret is set, or Claude (`claude-haiku-5-5` by default) with `ANTHROPIC_API_KEY`; set the `FITTO_LLM` variable to `anthropic` to prefer Claude when both keys exist. Without either, Fitto falls back to the free offline keyword scorer (or force it with `FITTO_LLM=heuristic`). GitHub Models, the former free default, was retired on 30 July 2026.
 4. **Caps and cache:** at most `FITTO_MAX_LLM_CALLS` (default 40) calls per run. Results are cached by job content and profile hash, unscored jobs are deferred to the next run, and a rate limit stops scoring for the run.
 
 Job descriptions are treated as untrusted input: the prompt tells the model to ignore any instructions inside a posting. A golden fixture set (`tests/fixtures/golden.yaml`) pins expected score bands; run `pnpm fitto eval` against a real model.
@@ -201,6 +201,7 @@ FITTO_DRY_RUN=1 pnpm fitto run   # full run with profile.example.yaml; writes ou
 |---|---|---|
 | GitHub Actions | ~2–4 min/day | Free for public repositories |
 | OpenAI (`gpt-4.1-mini`) | ≤ 40 scoring + 3 draft calls/day | Roughly a few cents a day |
+| Claude (optional, `claude-haiku-5-5`) | Same caps | Roughly a few cents a day; `claude-sonnet-5-5` is ~10–20× more |
 | Keyword scorer (no key) | Unlimited | Free; less nuanced, no fit summaries from an LLM |
 | Email | 1/day + 1/week | Gmail SMTP or Resend free tier |
 | The Next Chapter | Only jobs you select; ≤ 50 per run | Per TNC's terms |
