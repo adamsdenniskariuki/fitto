@@ -69,7 +69,7 @@ flowchart TD
 
 1. **Hard filters** drop jobs that fail your title keywords, seniority, location/remote rules, salary floor (when the salary is known) or dealbreakers.
 2. **Pre-rank** with a cheap keyword match, so the limited LLM budget goes to the most promising jobs.
-3. **LLM score** 0–100 with structured JSON (fit summary, matched skills, gaps, red flags, confidence). The default is GitHub Models (`openai/gpt-4.1-mini`) through the workflow's `GITHUB_TOKEN` with `models: read`. Set `OPENAI_API_KEY` to use OpenAI instead, or `FITTO_LLM=heuristic` for the offline keyword scorer.
+3. **LLM score** 0–100 with structured JSON (fit summary, matched skills, gaps, red flags, confidence). Fitto uses OpenAI (`gpt-4.1-mini` by default) when the `OPENAI_API_KEY` secret is set. Without it, Fitto falls back to the free offline keyword scorer (or force it with `FITTO_LLM=heuristic`). GitHub Models, the former free default, was retired on 30 July 2026.
 4. **Caps and cache:** at most `FITTO_MAX_LLM_CALLS` (default 40) calls per run. Results are cached by job content and profile hash, unscored jobs are deferred to the next run, and a rate limit stops scoring for the run.
 
 Job descriptions are treated as untrusted input: the prompt tells the model to ignore any instructions inside a posting. A golden fixture set (`tests/fixtures/golden.yaml`) pins expected score bands; run `pnpm fitto eval` against a real model.
@@ -200,8 +200,8 @@ FITTO_DRY_RUN=1 pnpm fitto run   # full run with profile.example.yaml; writes ou
 | Item | Default | Cost |
 |---|---|---|
 | GitHub Actions | ~2–4 min/day | Free for public repositories |
-| GitHub Models (`openai/gpt-4.1-mini`) | ≤ 40 scoring + 3 draft calls/day | Free tier; rate-limited (Fitto defers the rest) |
-| OpenAI (optional) | Same caps | Roughly a few cents a day with `gpt-4.1-mini` |
+| OpenAI (`gpt-4.1-mini`) | ≤ 40 scoring + 3 draft calls/day | Roughly a few cents a day |
+| Keyword scorer (no key) | Unlimited | Free; less nuanced, no fit summaries from an LLM |
 | Email | 1/day + 1/week | Gmail SMTP or Resend free tier |
 | The Next Chapter | Only jobs you select; ≤ 50 per run | Per TNC's terms |
 

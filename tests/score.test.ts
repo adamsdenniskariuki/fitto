@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ProfileSchema } from "../src/config.js";
 import { hardFilter } from "../src/filters.js";
 import { runGolden } from "../src/golden.js";
-import { githubModels, providerFromEnv, RateLimitError, type LlmProvider } from "../src/llm/provider.js";
+import { openAi, providerFromEnv, RateLimitError, type LlmProvider } from "../src/llm/provider.js";
 import { finalize } from "../src/normalize.js";
 import { buildMessages, cacheKey, failureReason, HeuristicScorer, LlmScorer, parseScore, scoreJobs } from "../src/score.js";
 import { emptyState } from "../src/state.js";
@@ -158,11 +158,12 @@ describe("scoreJobs", () => {
 describe("providers", () => {
   it("selects providers from env", () => {
     expect(providerFromEnv({})).toBeUndefined();
-    expect(providerFromEnv({ GITHUB_TOKEN: "t" })?.name).toMatch(/^github-models:/);
+    expect(providerFromEnv({ GITHUB_TOKEN: "t" })).toBeUndefined();
+    expect(() => providerFromEnv({ FITTO_LLM: "github", GITHUB_TOKEN: "t" })).toThrow(/retired/);
     expect(providerFromEnv({ GITHUB_TOKEN: "t", OPENAI_API_KEY: "k" })?.name).toMatch(/^openai:/);
     expect(providerFromEnv({ GITHUB_TOKEN: "t", FITTO_LLM: "heuristic" })).toBeUndefined();
   });
-  it("calls GitHub Models with JSON mode and maps 429", async () => {
+  it("calls OpenAI with JSON mode and maps 429", async () => {
     let body: Record<string, unknown> = {};
     let auth = "";
     const ok = (async (_u: unknown, init?: RequestInit) => {
@@ -170,11 +171,11 @@ describe("providers", () => {
       auth = new Headers(init?.headers).get("authorization") ?? "";
       return new Response(JSON.stringify({ choices: [{ message: { content: good } }] }));
     }) as typeof fetch;
-    await expect(githubModels("tok", undefined, ok).complete([{ role: "user", content: "hi" }])).resolves.toBe(good);
-    expect(body).toMatchObject({ model: "openai/gpt-4.1-mini", response_format: { type: "json_object" } });
+    await expect(openAi("tok", undefined, ok).complete([{ role: "user", content: "hi" }])).resolves.toBe(good);
+    expect(body).toMatchObject({ model: "gpt-4.1-mini", response_format: { type: "json_object" } });
     expect(auth).toBe("Bearer tok");
     const limited = (async () => new Response("", { status: 429 })) as typeof fetch;
-    await expect(githubModels("tok", undefined, limited).complete([])).rejects.toBeInstanceOf(RateLimitError);
+    await expect(openAi("tok", undefined, limited).complete([])).rejects.toBeInstanceOf(RateLimitError);
   });
 });
 
@@ -182,12 +183,12 @@ describe("scoring failure diagnostics", () => {
   it("reports HTTP errors with API error code but no response details", async () => {
     const fetchImpl = (async () =>
       new Response(JSON.stringify({ error: { code: "tokens_limit_reached", message: "secret details" } }), { status: 413 })) as typeof fetch;
-    const err = await githubModels("t", undefined, fetchImpl).complete([]).catch((e) => e);
+    const err = await openAi("t", undefined, fetchImpl).complete([]).catch((e) => e);
     expect(failureReason(err)).toBe("HTTP 413 (tokens_limit_reached)");
   });
   it("classifies non-JSON 200 responses", async () => {
     const fetchImpl = (async () => new Response("OK", { status: 200 })) as typeof fetch;
-    const err = await githubModels("t", undefined, fetchImpl).complete([]).catch((e) => e);
+    const err = await openAi("t", undefined, fetchImpl).complete([]).catch((e) => e);
     expect(failureReason(err)).toBe("invalid response");
   });
   it("counts failures by reason in scoreJobs stats", async () => {

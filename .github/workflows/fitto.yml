@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: write # push the encrypted state to the fitto-state branch only
-  models: read # GitHub Models scoring via GITHUB_TOKEN
 
 concurrency:
   group: fitto-state
@@ -31,7 +30,6 @@ jobs:
           FITTO_STATE_KEY: ${{ secrets.FITTO_STATE_KEY }}
           FITTO_COMPANIES: ${{ secrets.FITTO_COMPANIES }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ github.token }}
           FITTO_MODEL: ${{ vars.FITTO_MODEL }}
           FITTO_MAX_LLM_CALLS: ${{ vars.FITTO_MAX_LLM_CALLS }}
           FITTO_MAX_DRAFTS: ${{ vars.FITTO_MAX_DRAFTS }}
