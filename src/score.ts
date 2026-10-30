@@ -229,7 +229,8 @@ export async function scoreJobs(state: State, ids: string[], opts: ScoreRunOptio
     if (!rec) continue;
     const key = cacheKey(rec.job, opts.profile);
     const cached = state.scoreCache[key];
-    if (cached) {
+    // Keyword-scorer results are placeholders: rescore them once an LLM is available.
+    if (cached && !(cached.provider === "heuristic" && opts.scorer.name !== "heuristic")) {
       stats.cacheHits++;
       apply(id, key, cached, cached.provider);
       continue;

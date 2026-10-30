@@ -229,3 +229,18 @@ describe("lenient score parsing", () => {
     expect(failureReason(err)).toBe("schema mismatch (score)");
   });
 });
+describe("cache upgrade", () => {
+  it("rescores keyword-scorer cache entries when an LLM scorer is available", async () => {
+    const state = emptyState();
+    const j = job(1);
+    state.jobs[j.id] = { job: j, firstSeen: "2026-01-01T00:00:00Z", lastSeen: "2026-01-01T00:00:00Z" } as never;
+    const h = await scoreJobs(state, [j.id], { scorer: new HeuristicScorer(), profile, maxCalls: 5 });
+    expect(h.calls).toBe(1);
+    const llm = { name: "openai:x", score: async () => parseScore('{"score":77}') };
+    const s = await scoreJobs(state, [j.id], { scorer: llm, profile, maxCalls: 5 });
+    expect(s).toMatchObject({ calls: 1, cacheHits: 0 });
+    expect(state.jobs[j.id]!.score?.provider).toBe("openai:x");
+    const again = await scoreJobs(state, [j.id], { scorer: llm, profile, maxCalls: 5 });
+    expect(again).toMatchObject({ calls: 0, cacheHits: 1 });
+  });
+});
