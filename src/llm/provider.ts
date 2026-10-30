@@ -43,8 +43,19 @@ export class ChatCompletionsProvider implements LlmProvider {
       signal: AbortSignal.timeout(60_000),
     });
     if (res.status === 429) throw new RateLimitError(`${this.name} rate limited`);
-    if (!res.ok) throw new Error(`${this.name} returned HTTP ${res.status}`);
-    const data = (await res.json()) as ChatCompletion;
+    if (!res.ok) {
+      let code = "";
+      try {
+        const body = (await res.json()) as { error?: { code?: unknown } };
+        if (typeof body.error?.code === "string") code = ` (${body.error.code.replace(/[^\w.-]/g, "").slice(0, 40)})`;
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new Error(`${this.name} returned HTTP ${res.status}${code}`);
+    }
+    const data = (await res.json().catch(() => {
+      throw new Error(`${this.name} returned a non-JSON response`);
+    })) as ChatCompletion;
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error(`${this.name} returned an empty response`);
     return content;
