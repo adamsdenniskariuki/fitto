@@ -1,0 +1,66 @@
+name: pages
+
+# Builds the public Fitto site (fitto.madebyfavor.com) and deploys it to GitHub Pages.
+# The only data published is data/matches.enc.json, encrypted with FITTO_SITE_PASSPHRASE
+# (AES-256-GCM, PBKDF2-SHA256); it is decrypted in the visitor's browser. Nothing else from
+# the profile or state is ever written to the site, and the logs show only a job count.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "scripts/build-site.mjs", "src/site.ts", "src/site-types.ts", "src/sinks/tnc.ts", ".github/workflows/pages.yml"]
+  workflow_run:
+    workflows: [fitto, fitto-tnc, fitto-status]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build static site
+        run: pnpm site:build _site
+      - name: Add the encrypted job list
+        env:
+          FITTO_STATE_KEY: ${{ secrets.FITTO_STATE_KEY }}
+          FITTO_SITE_PASSPHRASE: ${{ secrets.FITTO_SITE_PASSPHRASE }}
+          FITTO_PROFILE: ${{ secrets.FITTO_PROFILE }}
+        run: |
+          if [ -z "$FITTO_STATE_KEY" ] || [ -z "$FITTO_SITE_PASSPHRASE" ]; then
+            echo "FITTO_STATE_KEY or FITTO_SITE_PASSPHRASE not set; publishing docs only."
+            exit 0
+          fi
+          pnpm fitto site-export _site/data/matches.enc.json
+      - name: Check that only ciphertext is published
+        run: |
+          if [ -f _site/data/matches.enc.json ]; then
+            node -e 'const e=JSON.parse(require("fs").readFileSync("_site/data/matches.enc.json","utf8"));const k=Object.keys(e).sort().join(",");if(k!=="alg,ct,iter,iv,kdf,salt,v")throw new Error("unexpected fields in site export")'
+          fi
+          extra=$(find _site -type f ! -path '_site/assets/*' ! -name '*.html' ! -name CNAME ! -name .nojekyll ! -path '_site/data/matches.enc.json')
+          if [ -n "$extra" ]; then echo "Unexpected files in _site:"; echo "$extra"; exit 1; fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

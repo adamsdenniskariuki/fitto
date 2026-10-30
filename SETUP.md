@@ -125,6 +125,31 @@ Fitto never sends anything on its own. Only the job ids you pass are sent.
 
 If you rotate the TNC token, jobs still "in progress" can't be re-checked with the new token (TNC limitation). Send them again; the idempotency key prevents duplicates.
 
+## 8. The site (fitto.madebyfavor.com)
+
+The site is deployed by the `pages` workflow. It publishes public docs and one encrypted file with your matches.
+
+1. **Set a site passphrase** (at least 12 characters; a long random one is best):
+   ```sh
+   pnpm fitto keygen   # copy this into your password manager first
+   gh secret set FITTO_SITE_PASSPHRASE -R adamsdenniskariuki/fitto   # then paste it when prompted
+   ```
+   You'll type it on the site, so keep it in your password manager. Changing it re-encrypts the list on the next deploy.
+2. **Optional:** add the site link to every email:
+   ```sh
+   gh variable set FITTO_SITE_URL --body https://fitto.madebyfavor.com/jobs.html -R adamsdenniskariuki/fitto
+   ```
+3. **Open https://fitto.madebyfavor.com/jobs.html** and enter the passphrase. Tick "Remember on this device" only on devices you trust.
+4. **To send jobs to TNC from the site, using the GitHub Action route (default):** create a fine-grained token at <https://github.com/settings/personal-access-tokens/new>:
+   - Resource owner: you. Repository access: **Only select repositories → fitto**.
+   - Permissions: **Actions → Read and write**. Nothing else; Metadata (read) is added automatically.
+   - Expiration: short (e.g. 30–90 days).
+
+   Paste it in **My jobs → Settings**. It's stored only in this browser and sent only to `api.github.com`. Each send dispatches `fitto-tnc` with opaque ids, so `TNC_API_TOKEN` (section 7) must be set. Results appear on the site once the run finishes and Pages redeploys, usually within a few minutes.
+5. **Direct API mode (optional):** in Settings choose "Direct API" and paste your TNC token. It's stored only in this browser and sent only to `thenextchapter.dev`. The browser then posts each selected URL itself, with the same Idempotency-Key and polling rules, and results are saved locally. **Today TNC doesn't allow browser requests (no CORS headers), so this is blocked**. The site shows "The Next Chapter doesn't allow browser requests yet — use GitHub Action mode" and offers a one-click switch. Nothing is sent when that happens.
+
+Pages settings (already done once by the maintainer): Settings → Pages → Source **GitHub Actions**, custom domain `fitto.madebyfavor.com`, **Enforce HTTPS** on.
+
 ## Secrets checklist
 
 | Secret | Required | |
@@ -137,3 +162,6 @@ If you rotate the TNC token, jobs still "in progress" can't be re-checked with t
 | `OPENAI_API_KEY` | no | Optional scorer |
 | `FITTO_COMPANIES` | no | Private watchlist |
 | `TNC_API_TOKEN` | no | Only to send selected jobs to The Next Chapter |
+| `FITTO_SITE_PASSPHRASE` | for the site | Unlocks your encrypted job list on fitto.madebyfavor.com |
+
+Tokens you paste into the site (a fine-grained GitHub token with Actions: Read and write on fitto only, and optionally a TNC token for Direct mode) are **not** repository secrets. They live only in your browser.

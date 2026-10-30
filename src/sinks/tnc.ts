@@ -1,11 +1,10 @@
-import { createHash } from "node:crypto";
-
 /**
  * The Next Chapter (thenextchapter.dev) submission sink.
  *
  * API: POST {base}/api/v1/submissions with `{ url }`, a Bearer token and an Idempotency-Key.
  * A 202 returns a statusUrl to poll (>= 5 s apart, honouring Retry-After). One URL per POST.
- * This module never logs URLs, tokens or response bodies.
+ * This module never logs URLs, tokens or response bodies. It has no Node-only imports: the Fitto site
+ * bundles it for the browser's "Direct" mode, so both routes share the same rules and tests.
  */
 
 export const TNC_BASE = "https://thenextchapter.dev";
@@ -29,9 +28,19 @@ export interface SubmissionSink {
   refresh(statusUrl: string): Promise<SubmissionResult>;
 }
 
-/** Deterministic per-URL key, so retries and reruns never create duplicates. The site uses the same formula. */
-export function idempotencyKey(url: string): string {
-  return "fitto-" + createHash("sha256").update(url.trim()).digest("hex").slice(0, 32);
+/** Deterministic per-URL key (fitto- + first 32 hex of SHA-256), so retries and reruns never create duplicates. */
+export async function idempotencyKey(url: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(url.trim()));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return "fitto-" + hex.slice(0, 32);
+}
+
+/** Thrown in browser mode when the first request fails at the network layer, which is how CORS blocks surface. */
+export class CorsBlockedError extends Error {
+  constructor() {
+    super("The Next Chapter doesn't allow browser requests yet; use GitHub Action mode");
+    this.name = "CorsBlockedError";
+  }
 }
 
 const ACCEPTED = new Set(["accepted", "completed", "complete", "succeeded", "success", "done", "processed", "created", "published"]);
@@ -67,6 +76,8 @@ export interface TncOptions {
   maxRetries?: number;
   /** Upper bound for any single wait, so a huge Retry-After can't stall the workflow. */
   maxWaitMs?: number;
+  /** Browser mode: a network error on the first POST throws CorsBlockedError instead of retrying. */
+  browser?: boolean;
 }
 
 export class TncSink implements SubmissionSink {
@@ -81,7 +92,8 @@ export class TncSink implements SubmissionSink {
   constructor(private readonly opts: TncOptions) {
     if (!opts.token) throw new Error("TNC_API_TOKEN is not set");
     this.base = new URL(opts.baseUrl ?? TNC_BASE);
-    this.fetch = opts.fetchImpl ?? fetch;
+    // Wrapped: browsers throw "Illegal invocation" when the global fetch is called as a method of another object.
+    this.fetch = opts.fetchImpl ?? ((input, init) => fetch(input, init));
     this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.maxPolls = opts.maxPolls ?? 12;
     this.maxRetries = opts.maxRetries ?? 3;
@@ -89,7 +101,8 @@ export class TncSink implements SubmissionSink {
   }
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
-    return { Authorization: `Bearer ${this.opts.token}`, Accept: "application/json", "User-Agent": "fitto (+https://github.com/adamsdenniskariuki/fitto)", ...extra };
+    const ua: Record<string, string> = this.opts.browser ? {} : { "User-Agent": "fitto (+https://github.com/adamsdenniskariuki/fitto)" };
+    return { Authorization: `Bearer ${this.opts.token}`, Accept: "application/json", ...ua, ...extra };
   }
 
   private wait(ms: number): Promise<void> {
@@ -110,7 +123,7 @@ export class TncSink implements SubmissionSink {
   async submit(url: string): Promise<SubmissionResult> {
     if (!/^https?:\/\//i.test(url)) return { state: "failed", detail: "invalid-url" };
     const endpoint = new URL("/api/v1/submissions", this.base).toString();
-    const key = idempotencyKey(url);
+    const key = await idempotencyKey(url);
     for (let attempt = 0; ; attempt++) {
       let res: Response;
       try {
@@ -119,7 +132,8 @@ export class TncSink implements SubmissionSink {
           headers: this.headers({ "Content-Type": "application/json", "Idempotency-Key": key }),
           body: JSON.stringify({ url }),
         });
-      } catch {
+      } catch (e) {
+        if (this.opts.browser && attempt === 0 && e instanceof TypeError) throw new CorsBlockedError();
         if (attempt >= this.maxRetries) return { state: "failed", detail: "network" };
         await this.wait(2 ** attempt * 2000);
         continue;

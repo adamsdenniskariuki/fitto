@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Set up Fitto</title>
+  <meta name="description" content="Step-by-step setup for Fitto: secrets, email, the encrypted job list and The Next Chapter.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">F</span>Fitto</a>
+      <div class="nav-links">
+        <a href="./">Home</a>
+        <a href="./#how">How it works</a>
+        <a href="setup.html" aria-current="page">Setup</a>
+        <a href="jobs.html">My jobs</a>
+        <a href="https://github.com/adamsdenniskariuki/fitto">GitHub</a>
+        <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme">◐</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <h1>Set up Fitto</h1>
+    <p class="lead">About 15 minutes. You'll set a few secrets with the GitHub CLI from your own terminal. Never paste secrets into chats, issues or commits. The full guide, with every option, is <a href="https://github.com/adamsdenniskariuki/fitto/blob/main/SETUP.md">SETUP.md</a>.</p>
+
+    <h2>1. Profile</h2>
+    <p>Copy <code>profile.example.yaml</code> to <code>profile.yaml</code> (git-ignored), fill in your skills, locations, salary floor, dealbreakers and CV text, then store it as a secret:</p>
+    <pre><code>gh secret set FITTO_PROFILE &lt; profile.yaml</code></pre>
+
+    <h2>2. State key</h2>
+    <p>This encrypts everything Fitto remembers. Keep a copy in your password manager.</p>
+    <pre><code>pnpm fitto keygen | gh secret set FITTO_STATE_KEY</code></pre>
+
+    <h2>3. Email</h2>
+    <p>Set <code>FITTO_EMAIL_TO</code>, then either SMTP (for example a Gmail app password) or a Resend key:</p>
+    <pre><code>gh secret set FITTO_EMAIL_TO
+gh secret set SMTP_HOST --body smtp.gmail.com
+gh secret set SMTP_PORT --body 465
+gh secret set SMTP_USER
+gh secret set SMTP_PASS          # Gmail app password
+# or
+gh secret set RESEND_API_KEY</code></pre>
+
+    <h2>4. Your encrypted job list on this site</h2>
+    <p>Pick a long passphrase you can type or keep in a password manager (at least 12 characters; a generated one is best). The workflow encrypts your matches with it, and only the ciphertext is published.</p>
+    <pre><code>pnpm fitto keygen | gh secret set FITTO_SITE_PASSPHRASE   # or type your own when prompted</code></pre>
+    <p>Then open <a href="jobs.html">My jobs</a> and enter the same passphrase. Tick "Remember on this device" only on devices you trust. Changing the passphrase takes effect on the next run.</p>
+
+    <h2>5. Send jobs to The Next Chapter (optional)</h2>
+    <p>Fitto never sends anything on its own. On <a href="jobs.html">My jobs</a>, tick the jobs you want and press <strong>Send selected to The Next Chapter</strong>. You'll be asked to confirm the count once. Pick a route under <strong>Settings</strong>:</p>
+    <table>
+      <thead><tr><th>Route</th><th>What you need</th><th>How it works</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>GitHub Action</strong> (default)</td>
+          <td><code>gh secret set TNC_API_TOKEN</code> in the repo, plus a fine-grained GitHub token pasted into the site</td>
+          <td>The site starts one <code>fitto-tnc</code> run with the opaque ids you selected. The workflow submits the jobs one by one and records Sent, Accepted or Failed. The site shows the result after it refreshes.</td>
+        </tr>
+        <tr>
+          <td><strong>Direct API</strong></td>
+          <td>Your The Next Chapter token pasted into the site</td>
+          <td>Your browser posts each job URL straight to The Next Chapter. <em>This currently doesn't work</em>, because The Next Chapter doesn't allow browser requests (CORS) yet. The site detects this and offers a one-click switch to the GitHub Action route.</td>
+        </tr>
+      </tbody>
+    </table>
+    <h3>Create the fine-grained GitHub token</h3>
+    <ol>
+      <li>Open <a href="https://github.com/settings/personal-access-tokens/new">github.com/settings/personal-access-tokens/new</a>.</li>
+      <li>Name it "Fitto site" and give it a short expiry (for example 90 days).</li>
+      <li>Under <strong>Repository access</strong>, choose <em>Only select repositories</em> → <code>adamsdenniskariuki/fitto</code>.</li>
+      <li>Under <strong>Repository permissions</strong>, set <strong>Actions: Read and write</strong> and leave everything else at "No access". (Metadata: Read-only is added automatically.)</li>
+      <li>Generate it, then paste it into <strong>My jobs → Settings</strong>. It is stored in this browser only and sent only to <code>api.github.com</code>.</li>
+    </ol>
+    <div class="callout"><p>With that permission, the token can start or cancel workflow runs in the fitto repository and nothing else. Workflow inputs on a public repository are public, so the site sends only opaque job ids, never URLs or titles. Revoke the token at any time from the same settings page.</p></div>
+
+    <h2>6. Run it</h2>
+    <pre><code>gh workflow run fitto.yml                   # daily run now (otherwise every morning)
+gh workflow run fitto.yml -f dry_run=true   # dry run: nothing is sent or saved</code></pre>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>Fitto, part of the <a href="https://devprep.madebyfavor.com/">madebyfavor</a> family.</span>
+      <span><a href="https://github.com/adamsdenniskariuki/fitto">Source on GitHub</a></span>
+    </div>
+  </footer>
+</body>
+</html>

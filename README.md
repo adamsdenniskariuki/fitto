@@ -148,6 +148,29 @@ sequenceDiagram
 - **Token safety:** the token is only sent to status URLs on the TNC origin. Logs show positions and outcomes only (`job 2/5: accepted`).
 - **Dry run:** `-f dry_run=true` resolves the ids but sends nothing.
 
+## The site: fitto.madebyfavor.com
+
+The public site holds the landing page, how-it-works and setup docs, and **My jobs**: your matches as one **encrypted** file that only your passphrase unlocks, in your browser.
+
+```mermaid
+flowchart LR
+  ST[(Encrypted state<br/>fitto-state branch)] --> EX["pages workflow<br/>site-export"]
+  EX -->|"AES-256-GCM, PBKDF2-SHA256 600k<br/>key from FITTO_SITE_PASSPHRASE"| CT[data/matches.enc.json<br/>ciphertext only]
+  CT --> PG[GitHub Pages]
+  PG --> BR["Your browser<br/>WebCrypto decrypt"]
+  BR -->|statuses, sends| LS[(localStorage<br/>export / import)]
+  BR -->|"Send selected (opaque ids)"| A["api.github.com<br/>fitto-tnc dispatch"]
+  A --> TNC[thenextchapter.dev]
+  BR -.->|"Direct mode (blocked by CORS today)"| TNC
+```
+
+- **Publishing:** after each `fitto`, `fitto-tnc` or `fitto-status` run, the `pages` workflow rebuilds the site and exports the matches (score at least `digest.min_score`, not dismissed, plus anything sent to TNC). The export includes title, company, salary, score, reasons, drafts and send status. A guard step fails the deploy if `_site` contains anything other than the docs and the ciphertext. Without `FITTO_SITE_PASSPHRASE` only the docs are published.
+- **Unlocking:** the passphrase never leaves the browser. "Remember on this device" keeps it in localStorage; otherwise it's forgotten when you close the tab.
+- **Statuses** (saved, applied, dismissed) are stored only in the browser's localStorage. Use export/import to move them between devices.
+- **Sending to The Next Chapter:** tick jobs (or use select all), then press **Send selected to The Next Chapter** and confirm once. Jobs already sent or in progress can't be selected again; failed ones can.
+  - **GitHub Action** (default): one `workflow_dispatch` of `fitto-tnc` with the opaque ids, using a fine-grained token you paste into the site (Actions: Read and write, this repo only). The workflow sends the jobs one by one, and the results show on the site after Pages redeploys.
+  - **Direct API:** the browser posts each URL to TNC with your TNC token, applying the same idempotency key and polling rules, and saves the results locally. TNC doesn't send CORS headers yet, so browsers block this today. The site detects that, says so, and offers a one-click switch to Action mode.
+
 ## Commands
 
 | Command | What it does |
@@ -158,6 +181,8 @@ sequenceDiagram
 | `pnpm fitto tracker [--all]` | Decrypt the state and print your tracker (local only; refuses to run in Actions) |
 | `pnpm fitto learned [show\|set <feature> <points>\|unset <feature>\|reset]` | Show or edit learned boosts and penalties (local only) |
 | `pnpm fitto tnc <ids> \| refresh` | Send selected jobs to The Next Chapter, or re-check pending ones |
+| `pnpm fitto site-export [path]` | Write the encrypted job list for the site (needs `FITTO_SITE_PASSPHRASE`) |
+| `pnpm site:build` | Build the static site into `_site/` |
 | `pnpm fitto fetch` | Fetch only; per-source counts |
 | `pnpm fitto eval` | Golden-set check against the configured scorer |
 | `pnpm fitto keygen` | Random key for `FITTO_STATE_KEY` |
