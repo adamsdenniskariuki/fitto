@@ -73,9 +73,68 @@ export function openAi(token: string, model = "gpt-4.1-mini", fetchImpl?: typeof
   );
 }
 
+interface AnthropicMessage {
+  content?: { type?: string; text?: string }[];
+}
+
+/** Anthropic Messages API client (Claude). */
+export class AnthropicProvider implements LlmProvider {
+  readonly name: string;
+  constructor(
+    private readonly token: string,
+    private readonly model = "claude-haiku-5-5",
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {
+    this.name = `anthropic:${model}`;
+  }
+
+  async complete(messages: ChatMessage[]): Promise<string> {
+    const system = messages
+      .filter((m) => m.role === "system")
+      .map((m) => m.content)
+      .join("\n\n");
+    const res = await this.fetchImpl("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": this.token,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: this.model,
+        max_tokens: 2048,
+        temperature: 0.2,
+        ...(system ? { system } : {}),
+        messages: messages.filter((m) => m.role !== "system").map((m) => ({ role: m.role, content: m.content })),
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (res.status === 429 || res.status === 529) throw new RateLimitError(`${this.name} rate limited`);
+    if (!res.ok) {
+      let code = "";
+      try {
+        const body = (await res.json()) as { error?: { type?: unknown } };
+        if (typeof body.error?.type === "string") code = ` (${body.error.type.replace(/[^\w.-]/g, "").slice(0, 40)})`;
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new Error(`${this.name} returned HTTP ${res.status}${code}`);
+    }
+    const data = (await res.json().catch(() => {
+      throw new Error(`${this.name} returned a non-JSON response`);
+    })) as AnthropicMessage;
+    const text = (data.content ?? [])
+      .filter((c) => c.type === "text" && c.text)
+      .map((c) => c.text)
+      .join("");
+    if (!text) throw new Error(`${this.name} returned an empty response`);
+    return text;
+  }
+}
+
 /**
- * Picks a provider: FITTO_LLM=openai|heuristic forces one; otherwise OpenAI when
- * OPENAI_API_KEY is set, else none (offline heuristic scoring).
+ * Picks a provider: FITTO_LLM=openai|anthropic|heuristic forces one; otherwise OpenAI when
+ * OPENAI_API_KEY is set, then Claude when ANTHROPIC_API_KEY is set, else none (offline heuristic scoring).
  * (GitHub Models, the former free default, was retired on 2026-07-30.)
  */
 export function providerFromEnv(env = process.env): LlmProvider | undefined {
@@ -87,5 +146,10 @@ export function providerFromEnv(env = process.env): LlmProvider | undefined {
     if (!env.OPENAI_API_KEY) throw new Error("FITTO_LLM=openai but OPENAI_API_KEY is not set");
     return openAi(env.OPENAI_API_KEY, model);
   }
+  if (choice === "anthropic" || choice === "claude" || (!choice && env.ANTHROPIC_API_KEY)) {
+    if (!env.ANTHROPIC_API_KEY) throw new Error("FITTO_LLM=anthropic but ANTHROPIC_API_KEY is not set");
+    return new AnthropicProvider(env.ANTHROPIC_API_KEY, model);
+  }
+  if (choice) throw new Error(`unknown FITTO_LLM "${choice}" (use openai, anthropic or heuristic)`);
   return undefined;
 }
