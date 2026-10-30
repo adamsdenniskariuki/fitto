@@ -37,6 +37,7 @@ describe("parseSalary", () => {
   });
   it("parses numeric ranges with trailing currency", () => {
     expect(parseSalary("80,000 - 95,000 EUR")).toMatchObject({ min: 80000, max: 95000, currency: "EUR" });
+    expect(parseSalary("AED 25,000 - 35,000 per month")).toMatchObject({ min: 25000, max: 35000, currency: "AED" });
   });
   it("ignores text without currency", () => {
     expect(parseSalary("5-10 years of experience")).toBeUndefined();

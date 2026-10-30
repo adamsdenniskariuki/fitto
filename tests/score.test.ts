@@ -63,6 +63,19 @@ describe("hard filters", () => {
     expect(hardFilter({ ...j, title: "Software Engineer" }, profile).pass).toBe(true);
     expect(hardFilter({ ...j, title: "Staff Engineer" }, profile).reason).toBe("seniority");
   });
+
+  it("applies per-currency salary floors", () => {
+    const p = ProfileSchema.parse({ salary: { min: 60000, currency: "USD", floors: { EUR: 55000, gbp: 50000 } } });
+    const at = (currency: string | undefined, max: number) =>
+      hardFilter({ ...job(2), salary: { currency, min: max - 10000, max, period: "year" } }, p).pass;
+    expect(at("USD", 50000)).toBe(false);
+    expect(at("USD", 70000)).toBe(true);
+    expect(at("EUR", 50000)).toBe(false);
+    expect(at("EUR", 56000)).toBe(true);
+    expect(at("GBP", 45000)).toBe(false);
+    expect(at(undefined, 50000)).toBe(false);
+    expect(at("AED", 1000)).toBe(true); // no floor for that currency: not filtered
+  });
 });
 
 describe("parseScore", () => {

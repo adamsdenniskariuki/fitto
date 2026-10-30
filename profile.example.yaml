@@ -31,6 +31,9 @@ locations:
 salary:
   min: 60000                   # annual floor; only applied when a salary is published
   currency: USD
+  floors:                      # optional floors for other currencies (others are not filtered)
+    EUR: 55000
+    GBP: 47000
 
 # Any of these appearing in a title/description rejects the job.
 dealbreakers: [gambling, "crypto casino", "security clearance"]
