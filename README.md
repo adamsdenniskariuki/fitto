@@ -171,6 +171,40 @@ flowchart LR
   - **GitHub Action** (default): one `workflow_dispatch` of `fitto-tnc` with the opaque ids, using a fine-grained token you paste into the site (Actions: Read and write, this repo only). The workflow sends the jobs one by one, and the results show on the site after Pages redeploys.
   - **Direct API:** the browser posts each URL to TNC with your TNC token, applying the same idempotency key and polling rules, and saves the results locally. TNC doesn't send CORS headers yet, so browsers block this today. The site detects that, says so, and offers a one-click switch to Action mode.
 
+## Configuration
+
+Set secrets with `gh secret set NAME -R adamsdenniskariuki/fitto` and variables with `gh variable set NAME --body value`. Use **repository** secrets, not environment secrets: the workflows can't read environment secrets. [SETUP.md](SETUP.md) has step-by-step instructions.
+
+**Secrets** (encrypted; never printed in logs):
+
+| Name | Needed | Purpose |
+|---|---|---|
+| `FITTO_PROFILE` | Required | Your profile and CV as YAML (see `profile.example.yaml`) |
+| `FITTO_STATE_KEY` | Required | Encrypts the saved state on the `fitto-state` branch (`pnpm fitto keygen`) |
+| `FITTO_EMAIL_TO` | For email | Digest recipient |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | For email (SMTP) | e.g. Gmail: `smtp.gmail.com`, `465`, your address, an app password |
+| `RESEND_API_KEY` | For email (Resend) | Alternative to SMTP |
+| `OPENAI_API_KEY` | Recommended | LLM scoring and drafts with OpenAI (default provider) |
+| `ANTHROPIC_API_KEY` | Optional | LLM scoring and drafts with Claude |
+| `FITTO_SITE_PASSPHRASE` | For the site | At least 12 characters; encrypts the job list published to Pages |
+| `TNC_API_TOKEN` | For TNC | Lets `fitto-tnc` submit the jobs you select to The Next Chapter |
+| `FITTO_COMPANIES` | Optional | Private watchlist that overrides `companies.yaml` |
+
+**Variables** (public; no personal data):
+
+| Name | Default | Purpose |
+|---|---|---|
+| `FITTO_LLM` | auto | Force `openai`, `anthropic` or `heuristic` (otherwise: OpenAI key, then Claude key, then keyword scorer) |
+| `FITTO_MODEL` | provider default | e.g. `gpt-4.1-mini`, `claude-haiku-5-5`, `claude-sonnet-5-5` (must match the provider) |
+| `FITTO_MAX_LLM_CALLS` | `40` | Scoring calls per run |
+| `FITTO_MAX_DRAFTS` | `3` | Drafts per run for scores of 80 or more |
+| `FITTO_EMAIL_FROM` | SMTP user / Resend default | Sender address |
+| `FITTO_SITE_URL` | none | Site link in emails, e.g. `https://fitto.madebyfavor.com` |
+
+**Local only:** `FITTO_DRY_RUN=1` (placeholder profile, local state, no delivery), `FITTO_PROFILE_FILE` (profile path, default `profile.yaml`), `FITTO_STATE_FILE` (use a local encrypted state file instead of the `fitto-state` branch), `FITTO_STATE_BRANCH` (default `fitto-state`), `FITTO_QUIET=1` (no log output).
+
+Tokens you paste into the site (a fine-grained GitHub token and, for Direct mode, a TNC token) are not repository settings. They stay in your browser.
+
 ## Commands
 
 | Command | What it does |
