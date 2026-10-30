@@ -9,12 +9,19 @@ import type { Job } from "./types.js";
 
 export const PROMPT_VERSION = "score-v1";
 
+const text = (max: number) =>
+  z.preprocess((v) => (v == null ? "" : typeof v === "string" ? v : JSON.stringify(v)), z.string()).transform((s) => s.slice(0, max));
+const list = (max: number) =>
+  z
+    .preprocess((v) => (v == null ? [] : Array.isArray(v) ? v : [v]), z.array(z.unknown()))
+    .transform((a) => a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).slice(0, max));
+
 export const ScoreSchema = z.object({
   score: z.coerce.number().min(0).max(100).transform(Math.round),
-  fit_summary: z.string().max(1200).default(""),
-  matched_skills: z.array(z.string()).max(30).default([]),
-  gaps: z.array(z.string()).max(20).default([]),
-  red_flags: z.array(z.string()).max(20).default([]),
+  fit_summary: text(1200),
+  matched_skills: list(30),
+  gaps: list(20),
+  red_flags: list(20),
   confidence: z.enum(["low", "medium", "high"]).catch("medium"),
 });
 
@@ -180,7 +187,11 @@ export function failureReason(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   const http = /HTTP \d{3}(?: \([\w.-]+\))?/.exec(msg);
   if (http) return http[0];
-  if (/non-JSON response|no JSON object|JSON/i.test(msg) || (e instanceof Error && e.name === "ZodError")) return "invalid response";
+  if (e instanceof z.ZodError) {
+    const fields = [...new Set(e.issues.map((i) => String(i.path[0] ?? "root").replace(/[^\w]/g, "")))].join("/");
+    return `schema mismatch (${fields})`;
+  }
+  if (/non-JSON response|no JSON object|JSON/i.test(msg)) return "invalid response";
   if (/empty response/.test(msg)) return "empty response";
   if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) return "timeout";
   return "network/other";

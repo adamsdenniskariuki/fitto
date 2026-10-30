@@ -199,3 +199,32 @@ describe("scoring failure diagnostics", () => {
     expect(s.errors).toEqual({ "HTTP 500": 1 });
   });
 });
+describe("lenient score parsing", () => {
+  it("truncates oversized fields instead of rejecting", () => {
+    const r = parseScore(
+      JSON.stringify({
+        score: "82.4",
+        fit_summary: "x".repeat(2000),
+        matched_skills: Array.from({ length: 50 }, (_, i) => `s${i}`),
+        gaps: "one gap",
+        red_flags: null,
+        confidence: "very high",
+      }),
+    );
+    expect(r.score).toBe(82);
+    expect(r.fit_summary).toHaveLength(1200);
+    expect(r.matched_skills).toHaveLength(30);
+    expect(r.gaps).toEqual(["one gap"]);
+    expect(r.red_flags).toEqual([]);
+    expect(r.confidence).toBe("medium");
+  });
+  it("names mismatched fields in the failure reason", () => {
+    let err: unknown;
+    try {
+      parseScore('{"score":"n/a"}');
+    } catch (e) {
+      err = e;
+    }
+    expect(failureReason(err)).toBe("schema mismatch (score)");
+  });
+});
