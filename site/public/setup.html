@@ -29,7 +29,9 @@
 
   <main id="main">
     <h1>Set up Fitto</h1>
-    <p class="lead">About 15 minutes. You'll set a few secrets with the GitHub CLI from your own terminal. Never paste secrets into chats, issues or commits. The full guide, with every option, is <a href="https://github.com/adamsdenniskariuki/fitto/blob/main/SETUP.md">SETUP.md</a>.</p>
+    <p class="lead">About 20 minutes. You'll set a few secrets with the GitHub CLI from your own terminal. Never paste secrets into chats, issues or commits. The full guide, with every option, is <a href="https://github.com/adamsdenniskariuki/fitto/blob/main/SETUP.md">SETUP.md</a>.</p>
+
+    <div class="callout"><p><strong>Use repository secrets, not environment secrets.</strong> In the web UI: <em>Settings → Secrets and variables → Actions → Repository secrets → New repository secret</em>. Secrets added under <em>Environments → github-pages</em> are invisible to Fitto's workflows. <code>gh secret set NAME</code> (without <code>--env</code>) always creates a repository secret; check with <code>gh secret list</code>.</p></div>
 
     <h2>1. Profile</h2>
     <p>Copy <code>profile.example.yaml</code> to <code>profile.yaml</code> (git-ignored), fill in your skills, locations, salary floor, dealbreakers and CV text, then store it as a secret:</p>
@@ -49,12 +51,26 @@ gh secret set SMTP_PASS          # Gmail app password
 # or
 gh secret set RESEND_API_KEY</code></pre>
 
-    <h2>4. Your encrypted job list on this site</h2>
-    <p>Pick a long passphrase you can type or keep in a password manager (at least 12 characters; a generated one is best). The workflow encrypts your matches with it, and only the ciphertext is published.</p>
-    <pre><code>pnpm fitto keygen | gh secret set FITTO_SITE_PASSPHRASE   # or type your own when prompted</code></pre>
+    <h2>4. Smarter scoring (recommended)</h2>
+    <p>Without an API key, Fitto uses a free keyword scorer: rough scores, no "why it fits" summaries and no drafts. Add <strong>one</strong> LLM key and add some prepaid credit with the provider. If both are set, OpenAI is used unless you set <code>FITTO_LLM</code> to <code>anthropic</code>.</p>
+    <table>
+      <thead><tr><th>Provider</th><th>Get a key</th><th>Set it</th><th>Default model and cost</th></tr></thead>
+      <tbody>
+        <tr><td><strong>OpenAI</strong> (default)</td><td><a href="https://platform.openai.com/api-keys">platform.openai.com/api-keys</a></td><td><code>gh secret set OPENAI_API_KEY</code></td><td><code>gpt-4.1-mini</code>, a few cents a day</td></tr>
+        <tr><td><strong>Claude</strong></td><td><a href="https://platform.claude.com">platform.claude.com</a> → API keys</td><td><code>gh secret set ANTHROPIC_API_KEY</code></td><td><code>claude-haiku-5-5</code>, a little cheaper</td></tr>
+      </tbody>
+    </table>
+    <pre><code>gh variable set FITTO_LLM --body anthropic            # prefer Claude when both keys are set
+gh variable set FITTO_MODEL --body claude-sonnet-5-5   # optional: more careful, about 20× the cost</code></pre>
+    <p>Each run scores up to 40 jobs (best keyword matches first) and leaves the rest for the next run.</p>
+
+    <h2>5. Your encrypted job list on this site</h2>
+    <p>Pick a long passphrase of <strong>at least 12 characters</strong>; shorter ones make the site deploy publish docs only. A generated one is best. Save it in your password manager first, because you'll type it here. The workflow encrypts your matches with it, and only the ciphertext is published.</p>
+    <pre><code>pnpm fitto keygen                        # copy the output into your password manager
+gh secret set FITTO_SITE_PASSPHRASE      # paste it when prompted</code></pre>
     <p>Then open <a href="jobs.html">My jobs</a> and enter the same passphrase. Tick "Remember on this device" only on devices you trust. Changing the passphrase takes effect on the next run.</p>
 
-    <h2>5. Send jobs to The Next Chapter (optional)</h2>
+    <h2>6. Send jobs to The Next Chapter (optional)</h2>
     <p>Fitto never sends anything on its own. On <a href="jobs.html">My jobs</a>, tick the jobs you want and press <strong>Send selected to The Next Chapter</strong>. You'll be asked to confirm the count once. Pick a route under <strong>Settings</strong>:</p>
     <table>
       <thead><tr><th>Route</th><th>What you need</th><th>How it works</th></tr></thead>
@@ -79,11 +95,34 @@ gh secret set RESEND_API_KEY</code></pre>
       <li>Under <strong>Repository permissions</strong>, set <strong>Actions: Read and write</strong> and leave everything else at "No access". (Metadata: Read-only is added automatically.)</li>
       <li>Generate it, then paste it into <strong>My jobs → Settings</strong>. It is stored in this browser only and sent only to <code>api.github.com</code>.</li>
     </ol>
+    <h3>Is Direct mode available yet?</h3>
+    <p>You can check without submitting anything. On <a href="jobs.html">My jobs</a> (other pages block outside connections on purpose), press F12 and run this in the Console. It sends no token, so nothing can be created:</p>
+    <pre><code>fetch("https://thenextchapter.dev/api/v1/submissions", {
+  method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+}).then(r =&gt; console.log("CORS OK, status", r.status))
+  .catch(e =&gt; console.log("Blocked by CORS:", e.message));</code></pre>
+    <p>"Blocked by CORS" means you should keep using the GitHub Action route. "CORS OK, status 401" means Direct mode will work.</p>
     <div class="callout"><p>With that permission, the token can start or cancel workflow runs in the fitto repository and nothing else. Workflow inputs on a public repository are public, so the site sends only opaque job ids, never URLs or titles. Revoke the token at any time from the same settings page.</p></div>
 
-    <h2>6. Run it</h2>
+    <h2>7. Run it</h2>
     <pre><code>gh workflow run fitto.yml                   # daily run now (otherwise every morning)
 gh workflow run fitto.yml -f dry_run=true   # dry run: nothing is sent or saved</code></pre>
+
+    <h2>Troubleshooting</h2>
+    <p>Run logs show counts only: <em>Actions → fitto → latest run → Run Fitto</em>.</p>
+    <table>
+      <thead><tr><th>You see</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>"Dry run (… FITTO_PROFILE / FITTO_STATE_KEY not set)"</td><td>The secrets are missing or are environment secrets. Re-add them as repository secrets.</td></tr>
+        <tr><td><code>scoring (heuristic)</code></td><td>No LLM key is set (step 4).</td></tr>
+        <tr><td><code>HTTP 401 (invalid_api_key)</code> / <code>(authentication_error)</code></td><td>Wrong or revoked key. Create a new one and run <code>gh secret set</code> again.</td></tr>
+        <tr><td><code>HTTP 429</code>, <code>insufficient_quota</code></td><td>Add billing credit. Deferred jobs are scored on later runs.</td></tr>
+        <tr><td>No email</td><td>Check spam and the SMTP secrets (Gmail needs an app password, port 465).</td></tr>
+        <tr><td><code>pages</code> fails: "passphrase must be at least 12 characters"</td><td>Set a longer <code>FITTO_SITE_PASSPHRASE</code> (step 5).</td></tr>
+        <tr><td>Wrong passphrase on My jobs</td><td>After changing it, wait for the next <code>pages</code> run to finish.</td></tr>
+      </tbody>
+    </table>
+    <p>More detail is in <a href="https://github.com/adamsdenniskariuki/fitto/blob/main/SETUP.md#troubleshooting">SETUP.md</a>.</p>
   </main>
 
   <footer class="site-footer">
