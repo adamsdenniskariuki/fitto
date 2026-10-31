@@ -119,7 +119,7 @@ Set variables with `gh variable set NAME --body value -R adamsdenniskariuki/fitt
 ## 6. Run it
 
 ```sh
-gh workflow run fitto.yml                   # daily run now (otherwise 05:00 UTC every day)
+gh workflow run fitto.yml                   # daily run now (otherwise ~04:17 UTC daily; GitHub can delay scheduled runs)
 gh workflow run fitto.yml -f dry_run=true   # dry run: nothing is sent or saved
 gh workflow run fitto-weekly.yml            # weekly summary now (otherwise Mondays)
 ```

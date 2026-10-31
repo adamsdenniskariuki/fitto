@@ -2,7 +2,7 @@ name: fitto
 
 on:
   schedule:
-    - cron: "0 5 * * *" # daily, 08:00 Nairobi
+    - cron: "17 4 * * *" # daily, ~07:17 Nairobi; off the hour because GitHub delays top-of-hour schedules
   workflow_dispatch:
     inputs:
       dry_run:
