@@ -63,14 +63,15 @@ flowchart TD
   C -- yes --> A
   C -- no, within call cap --> L[LLM: score, fit summary,<br/>matched skills, gaps, red flags, confidence]
   C -- over cap --> DEF[Deferred to next run]
-  L --> A[+ learned adjustment ±15]
+  L --> A[+ region priority bonus<br/>+ learned adjustment ±15]
   A --> FS[Final score]
 ```
 
 1. **Hard filters** drop jobs that fail your title keywords, seniority, location/remote rules, salary floor (when the salary is known) or dealbreakers.
-2. **Pre-rank** with a cheap keyword match, so the limited LLM budget goes to the most promising jobs.
+2. **Pre-rank** with a cheap keyword match (plus half the region bonus), so the limited LLM budget goes to the most promising jobs.
 3. **LLM score** 0–100 with structured JSON (fit summary, matched skills, gaps, red flags, confidence). Fitto uses OpenAI (`gpt-4.1-mini` by default) when the `OPENAI_API_KEY` secret is set, or Claude (`claude-haiku-5-5` by default) with `ANTHROPIC_API_KEY`; set the `FITTO_LLM` variable to `anthropic` to prefer Claude when both keys exist. Without either, Fitto falls back to the free offline keyword scorer (or force it with `FITTO_LLM=heuristic`). GitHub Models, the former free default, was retired on 30 July 2026.
-4. **Caps and cache:** at most `FITTO_MAX_LLM_CALLS` (default 40) calls per run. Results are cached by job content and profile hash, unscored jobs are deferred to the next run, and a rate limit stops scoring for the run.
+4. **Region priority** (optional): list preferred regions best first in `locations.priority`, e.g. `[Kenya, Europe, Middle East, USA]`. A job whose location matches gets `locations.priority_boost` points (default 10) for the first region, decreasing evenly down the list (10, 8, 5, 3); others get 0. Kenya, Africa, Europe/EMEA, Middle East/MENA and USA know common countries and cities; other entries (e.g. `Kigali`) match literally. The bonus is applied after the LLM, so changing it keeps cached scores, and digests show it (`region Kenya +10`). It only reorders jobs that already pass the location filters.
+5. **Caps and cache:** at most `FITTO_MAX_LLM_CALLS` (default 40) calls per run. Results are cached by job content and profile hash, unscored jobs are deferred to the next run, and a rate limit stops scoring for the run.
 
 Job descriptions are treated as untrusted input: the prompt tells the model to ignore any instructions inside a posting. A golden fixture set (`tests/fixtures/golden.yaml`) pins expected score bands; run `pnpm fitto eval` against a real model.
 
@@ -106,7 +107,7 @@ flowchart LR
 
 ## Digests and statuses
 
-- **Daily email** with the top `digest.top_n` jobs scoring at least `digest.min_score`. Each entry shows the title, company, location, salary, score, why it fits, gaps, red flags, the learned adjustment, the link (with source attribution), DevPREP interview prep for supported companies, any drafts, and the status command. A job is never repeated unless its status changes.
+- **Daily email** with the top `digest.top_n` jobs scoring at least `digest.min_score`. Each entry shows the title, company, location, salary, score, why it fits, gaps, red flags, the region and learned adjustment, the link (with source attribution), DevPREP interview prep for supported companies, any drafts, and the status command. A job is never repeated unless its status changes.
 - **Weekly email** (Mondays) with run counts, pipeline totals, status changes and the best new jobs.
 - **Statuses:** `gh workflow run fitto-status.yml -f ids=<id> -f status=applied`, or run the **fitto-status** workflow from the Actions page.
 - **Sinks:** delivery goes through `src/sinks/`. `Sink.send(message)` is used for email (SMTP or Resend) and dry run, and `SubmissionSink.submit(url)` for The Next Chapter.
@@ -115,7 +116,7 @@ flowchart LR
 
 Thumbs (`up`/`down`) and statuses become signals: `up`, `applied`, `interview` and `offer` count +1, `saved` +0.5, and `down` and `no` −1. Employer rejections are neutral. Each job contributes features: `company:<name>`, `title:<word>` and `skill:<matched skill>`. A feature's weight is its smoothed average signal (capped at ±8 points), and a job's total adjustment is capped at ±15. Your most recent liked and disliked jobs are also passed to the LLM as few-shot examples.
 
-Everything is transparent: digests show `Learned: +5 from your feedback (company:acme +3.3, …)`, and `pnpm fitto learned` prints every weight and example. Use `pnpm fitto learned set skill:go 6` to pin a weight. Manual values override learned ones, and `unset` or `reset` removes them.
+Everything is transparent: digests show `Adjusted: +5 for region and your feedback (company:acme +3.3, …)`, and `pnpm fitto learned` prints every weight and example. Use `pnpm fitto learned set skill:go 6` to pin a weight. Manual values override learned ones, and `unset` or `reset` removes them.
 
 ## Drafts and interview prep
 

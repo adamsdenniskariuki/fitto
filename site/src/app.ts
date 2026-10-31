@@ -175,7 +175,7 @@ function jobCard(j: SiteJob): HTMLElement {
     chips("Matches", j.matched_skills, "chip-ok"),
     chips("Gaps", j.gaps, "chip-warn"),
     chips("Red flags", j.red_flags, "chip-bad"),
-    chips("Learned", j.adjustReasons, ""),
+    chips("Adjusted", j.adjustReasons, ""),
     draft,
     el(
       "div",

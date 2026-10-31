@@ -55,8 +55,12 @@ export const ProfileSchema = z.object({
       countries: z.array(z.string()).default([]),
       /** Phrases that make a remote role unavailable to you, e.g. "US only". */
       exclude: z.array(z.string()).default([]),
+      /** Preferred regions, best first (e.g. [Kenya, Europe, Middle East, USA]); boosts score and LLM budget. */
+      priority: z.array(z.string()).default([]),
+      /** Points added for the first priority region, decreasing evenly down the list. */
+      priority_boost: z.number().min(0).max(30).default(10),
     })
-    .default({ remote: true, onsite_cities: [], countries: [], exclude: [] }),
+    .default({ remote: true, onsite_cities: [], countries: [], exclude: [], priority: [], priority_boost: 10 }),
   salary: z
     .object({
       min: z.number().optional(),
@@ -108,7 +112,11 @@ export function loadProfile(env = process.env, path = "profile.yaml"): Profile {
 }
 
 export function profileHash(p: Profile): string {
-  return createHash("sha256").update(JSON.stringify(p)).digest("hex").slice(0, 16);
+  // Region priority is applied after scoring, so changing it must not invalidate cached LLM scores.
+  const locations: Partial<Profile["locations"]> = { ...p.locations };
+  delete locations.priority;
+  delete locations.priority_boost;
+  return createHash("sha256").update(JSON.stringify({ ...p, locations })).digest("hex").slice(0, 16);
 }
 
 export interface Settings {

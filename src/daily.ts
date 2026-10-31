@@ -10,6 +10,7 @@ import { generateDrafts } from "./drafts.js";
 import { refreshPending, tncSinkFromEnv } from "./submit.js";
 import { buildTasks, fetchAll } from "./sources/index.js";
 import { pruneState, saveState } from "./state.js";
+import { regionBoost } from "./regions.js";
 
 export interface DailyResult {
   fetched: number;
@@ -41,7 +42,11 @@ export async function runDaily(ctx: Context, http = new HttpClient()): Promise<D
     profile: ctx.profile,
     maxCalls: ctx.settings.maxLlmCalls,
     examples: fewShotExamples(state),
-    adjust: (job, r) => adjustmentFor(state.learned, job, r),
+    adjust: (job, r) => {
+      const a = adjustmentFor(state.learned, job, r);
+      const reg = regionBoost(job, ctx.profile);
+      return reg.points ? { points: a.points + reg.points, reasons: [`region ${reg.region} +${reg.points}`, ...a.reasons] } : a;
+    },
     now,
   });
   log.info(
