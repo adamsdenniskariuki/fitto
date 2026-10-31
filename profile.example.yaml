@@ -27,6 +27,8 @@ locations:
   onsite_cities: [Nairobi]     # accept on-site/hybrid roles in these cities
   countries: [Kenya]
   exclude: ["US only", "USA only", "United States only", "must be located in the US", "Canada only"]
+  priority: [Kenya, Europe, Middle East, USA]  # optional: preferred regions, best first
+  priority_boost: 10           # points for the first region, decreasing down the list (10, 8, 5, 3)
 
 salary:
   min: 60000                   # annual floor; only applied when a salary is published

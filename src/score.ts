@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { profileHash, type Profile } from "./config.js";
 import { detectSeniority } from "./filters.js";
+import { regionBoost } from "./regions.js";
 import type { ChatMessage, LlmProvider } from "./llm/provider.js";
 import { RateLimitError } from "./llm/provider.js";
 import type { ScoreResult, State } from "./state.js";
@@ -50,7 +51,8 @@ export function prerank(job: Job, profile: Profile): number {
   const skills = profile.skills.filter((s) => mentions(text, s)).length;
   const nice = profile.nice_to_have.filter((s) => mentions(text, s)).length;
   const titleHit = profile.title_keywords.some((k) => mentions(job.title, k)) ? 1 : 0;
-  return skills * 3 + nice + titleHit * 2 + (job.salary ? 0.5 : 0);
+  const region = regionBoost(job, profile).points / 2;
+  return skills * 3 + nice + titleHit * 2 + (job.salary ? 0.5 : 0) + region;
 }
 
 /** Deterministic offline scorer: used when no LLM is configured, and as the CI mock. */
@@ -86,7 +88,7 @@ export function buildMessages(job: Job, profile: Profile, examples: FewShot[]): 
     nice_to_have: profile.nice_to_have,
     years_experience: profile.years_experience,
     seniority: profile.seniority,
-    locations: profile.locations,
+    locations: { remote: profile.locations.remote, onsite_cities: profile.locations.onsite_cities, countries: profile.locations.countries, exclude: profile.locations.exclude },
     salary_floor: profile.salary,
     dealbreakers: profile.dealbreakers,
     cv: profile.cv.slice(0, 5000),
