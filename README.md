@@ -29,7 +29,7 @@ flowchart LR
 
 | Workflow | When | What |
 |---|---|---|
-| `fitto` | Daily at 05:00 UTC, or manually | Fetch, filter, score, draft, email the digest, save state |
+| `fitto` | Daily at 04:17 UTC (GitHub may start it later), or manually | Fetch, filter, score, draft, email the digest, save state |
 | `fitto-weekly` | Mondays, or manually | Weekly summary email |
 | `fitto-status` | Manually (one command per job) | Record a status or thumbs up/down |
 | `fitto-tnc` | Manually (only jobs you select) | Send selected jobs to The Next Chapter |
