@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deliver, sinksFromEnv, type Message, type Sink } from "../src/sinks/index.js";
 import { CallMeBotSink, e164, renderWhatsApp, TwilioWhatsAppSink, whatsappSinkFromEnv } from "../src/sinks/whatsapp.js";
+import { SafeSinkError } from "../src/sinks/types.js";
 
 const msg = (n = 5): Message => ({
   kind: "daily",
@@ -68,6 +69,15 @@ describe("WhatsApp sinks", () => {
     const { fetchFn } = capture(401, '{"message":"+254712345678 secret body"}');
     const env = { FITTO_WHATSAPP_TO: "+254712345678", TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t" };
     await expect(new TwilioWhatsAppSink(env, fetchFn).send(msg())).rejects.toThrow(/^Twilio returned HTTP 401$/);
+  });
+
+  it("Twilio errors add the numeric code and a hint, never the response message", async () => {
+    const { fetchFn } = capture(400, '{"code":63007,"message":"whatsapp:+254712345678 not found"}');
+    const env = { FITTO_WHATSAPP_TO: "+254712345678", TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t" };
+    const err = await new TwilioWhatsAppSink(env, fetchFn).send(msg()).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(SafeSinkError);
+    expect((err as Error).message).toMatch(/^Twilio returned HTTP 400 code 63007: TWILIO_WHATSAPP_FROM/);
+    expect((err as Error).message).not.toContain("254712345678");
   });
 
   it("CallMeBot sends a GET and detects error pages served with 200", async () => {

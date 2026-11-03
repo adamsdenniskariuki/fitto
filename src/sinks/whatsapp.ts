@@ -1,4 +1,4 @@
-import type { Message, Sink } from "./types.js";
+import { SafeSinkError, type Message, type Sink } from "./types.js";
 
 type Env = NodeJS.ProcessEnv;
 type Detail = "top" | "count";
@@ -55,9 +55,31 @@ export class TwilioWhatsAppSink implements Sink {
       headers: { authorization: `Basic ${auth}`, "content-type": "application/x-www-form-urlencoded" },
       body: body.toString(),
     });
-    // Status only: the response echoes phone numbers and the message body.
-    if (!res.ok) throw new Error(`Twilio returned HTTP ${res.status}`);
+    // Status and numeric Twilio code only: the response echoes phone numbers and the message body.
+    if (!res.ok) {
+      let code: unknown;
+      try {
+        code = ((await res.json()) as { code?: unknown }).code;
+      } catch {
+        /* non-JSON body */
+      }
+      const c = typeof code === "number" ? ` code ${code}` : "";
+      throw new SafeSinkError(`Twilio returned HTTP ${res.status}${c}${twilioHint(code)}`);
+    }
   }
+}
+
+/** Plain-language hints for the Twilio errors people usually hit. */
+function twilioHint(code: unknown): string {
+  const hints: Record<number, string> = {
+    20003: ": check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN",
+    21211: ": FITTO_WHATSAPP_TO is not a valid number",
+    21606: ": TWILIO_WHATSAPP_FROM is not a WhatsApp sender on this account (sandbox: +14155238886)",
+    63007: ": TWILIO_WHATSAPP_FROM is not a WhatsApp sender on this account (sandbox: +14155238886)",
+    63015: ": join the sandbox first (send the join code to +14155238886)",
+    63016: ": outside WhatsApp's 24-hour window; message the Twilio number, then retry",
+  };
+  return typeof code === "number" ? (hints[code] ?? "") : "";
 }
 
 /** Free personal gateway (callmebot.com): messages only the number that registered the key. */
@@ -77,7 +99,7 @@ export class CallMeBotSink implements Sink {
     const res = await this.fetchFn(`https://api.callmebot.com/whatsapp.php?${q}`, { method: "GET" });
     const text = await res.text().catch(() => "");
     // CallMeBot can answer 200 with an error page, so check the body for its error marker too.
-    if (!res.ok || /APIKey is invalid|ERROR/i.test(text)) throw new Error(`CallMeBot returned HTTP ${res.status}`);
+    if (!res.ok || /APIKey is invalid|ERROR/i.test(text)) throw new SafeSinkError(`CallMeBot returned HTTP ${res.status}`);
   }
 }
 

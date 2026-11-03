@@ -2,7 +2,7 @@ import { log } from "../log.js";
 import { DryRunSink } from "./dryrun.js";
 import { emailSinkFromEnv } from "./email.js";
 import { whatsappSinkFromEnv } from "./whatsapp.js";
-import type { Message, Sink } from "./types.js";
+import { SafeSinkError, type Message, type Sink } from "./types.js";
 
 export type { Message, Sink } from "./types.js";
 
@@ -31,7 +31,8 @@ export async function deliver(sinks: Sink[], m: Message): Promise<boolean> {
       if (!s.notifyOnly || !hasPrimary) ok = true;
       log.info(`${m.kind}: delivered ${m.count} jobs via ${s.name}`);
     } catch (e) {
-      log.error(`${m.kind}: delivery via ${s.name} failed (${e instanceof Error ? e.name : "error"})`);
+      const why = e instanceof SafeSinkError ? e.message : e instanceof Error ? e.name : "error";
+      log.error(`${m.kind}: delivery via ${s.name} failed (${why})`);
     }
   }
   return ok;

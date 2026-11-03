@@ -31,3 +31,8 @@ export interface Sink {
   notifyOnly?: boolean;
   send(message: Message): Promise<void>;
 }
+
+/** An error whose message contains no personal data (status codes only), so it may be logged. */
+export class SafeSinkError extends Error {
+  override name = "SafeSinkError";
+}
