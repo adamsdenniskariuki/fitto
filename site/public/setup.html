@@ -50,6 +50,15 @@ gh secret set SMTP_USER
 gh secret set SMTP_PASS          # Gmail app password
 # or
 gh secret set RESEND_API_KEY</code></pre>
+    <h3>Optional: WhatsApp ping</h3>
+    <p>A short message alongside the email: the top 3 jobs (title, company, score) and a link to your encrypted list. Set your number, then <strong>one</strong> provider:</p>
+    <pre><code>gh secret set FITTO_WHATSAPP_TO       # international format, e.g. +254712345678
+# CallMeBot (free, your own number only): follow callmebot.com's activation steps, then
+gh secret set CALLMEBOT_API_KEY
+# or Twilio (official; the sandbox needs rejoining every 72 hours)
+gh secret set TWILIO_ACCOUNT_SID
+gh secret set TWILIO_AUTH_TOKEN</code></pre>
+    <p>To keep job titles out of WhatsApp, send only the count and the link: <code>gh variable set FITTO_WHATSAPP_DETAIL --body count</code>. Email stays the main channel. <a href="https://github.com/adamsdenniskariuki/fitto/blob/main/SETUP.md#optional-whatsapp-ping">Step-by-step guide</a>.</p>
 
     <h2>4. Smarter scoring (recommended)</h2>
     <p>Without an API key, Fitto uses a free keyword scorer: rough scores, no "why it fits" summaries and no drafts. Add <strong>one</strong> LLM key and add some prepaid credit with the provider. If both are set, OpenAI is used unless you set <code>FITTO_LLM</code> to <code>anthropic</code>.</p>

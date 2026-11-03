@@ -8,6 +8,17 @@ export interface Message {
   count: number;
   /** Public-safe rendering (counts only) for job summaries and logs. */
   redacted: string;
+  /** Short form for chat channels such as WhatsApp. */
+  brief?: Brief;
+}
+
+export interface Brief {
+  /** One line, e.g. "Fitto: 6 job matches for 2026-11-03". */
+  headline: string;
+  /** Best jobs first; chat sinks show at most a few. */
+  top: { title: string; company: string; score?: number }[];
+  /** Where to see the full list (the encrypted site), if configured. */
+  link?: string;
 }
 
 /**
@@ -16,5 +27,7 @@ export interface Message {
  */
 export interface Sink {
   name: string;
+  /** A short notification channel (e.g. WhatsApp) rather than the full digest. */
+  notifyOnly?: boolean;
   send(message: Message): Promise<void>;
 }

@@ -72,6 +72,11 @@ ${d.top.length ? `<h3>Best new jobs this week</h3><ul>${d.top.map((r) => li(r)).
     html,
     count: d.top.length,
     redacted: `### Fitto weekly summary (redacted)\n\n${d.runs} daily runs this week. Details are only sent by email.`,
+    brief: {
+      headline: subject,
+      top: d.top.map((r) => ({ title: r.job.title, company: r.job.company, score: r.score?.final })),
+      link: links.site,
+    },
   };
 }
 
