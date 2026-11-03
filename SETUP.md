@@ -70,6 +70,36 @@ gh secret set FITTO_EMAIL_TO      # your address
 
 If no provider is configured, runs still work but only write a redacted (counts only) job summary.
 
+### Optional: WhatsApp ping
+
+A short message alongside the email: the headline, the top 3 jobs (title, company, score) and a link to your encrypted list. First set your number in international format:
+
+```sh
+gh secret set FITTO_WHATSAPP_TO -R adamsdenniskariuki/fitto   # e.g. +254712345678
+```
+
+Then pick one provider.
+
+**CallMeBot (free, about 2 minutes, your own number only)**
+
+1. Open <https://www.callmebot.com/blog/free-api-whatsapp-messages/> and save the bot's phone number from step 1 in your contacts.
+2. Send it this WhatsApp message: `I allow callmebot to send me messages`.
+3. You'll receive an API key. Store it: `gh secret set CALLMEBOT_API_KEY -R adamsdenniskariuki/fitto`.
+
+CallMeBot is a free, unofficial gateway: job titles pass through it, and it may be slow or rate-limited.
+
+**Twilio (official)**
+
+1. Create an account at <https://www.twilio.com/try-twilio>, then open **Messaging → Try it out → Send a WhatsApp message**.
+2. Join the sandbox by sending the shown `join <words>` code from your phone to **+1 415 523 8886**. The sandbox expires after 72 hours without messages; send the code again to rejoin. For a permanent sender, register a WhatsApp sender in Twilio and set `TWILIO_WHATSAPP_FROM` to it.
+3. Store the credentials from the console home page:
+   ```sh
+   gh secret set TWILIO_ACCOUNT_SID -R adamsdenniskariuki/fitto
+   gh secret set TWILIO_AUTH_TOKEN -R adamsdenniskariuki/fitto
+   ```
+
+If both are set, Twilio is used. To keep job titles out of WhatsApp entirely, send only the count and the link: `gh variable set FITTO_WHATSAPP_DETAIL --body count -R adamsdenniskariuki/fitto`. Set `FITTO_SITE_URL` (section 5) so the message links to your list.
+
 ## 4. LLM scoring (recommended)
 
 Without an API key, Fitto uses a free keyword scorer: it works, but its scores are rough and it writes no "why it fits" summaries or drafts. Add **one** of these keys (both work; if both are set, OpenAI wins unless `FITTO_LLM=anthropic`).
@@ -112,6 +142,8 @@ Each run scores at most `FITTO_MAX_LLM_CALLS` jobs (best keyword matches first) 
 | `FITTO_MAX_LLM_CALLS` | variable | Scoring calls per run (default 40) |
 | `FITTO_MAX_DRAFTS` | variable | Draft CV bullets and cover notes per run for scores of 80 or more (default 3) |
 | `FITTO_EMAIL_FROM` | variable | Sender address |
+| `FITTO_SITE_URL` | variable | Link to the site in emails and WhatsApp, e.g. `https://fitto.madebyfavor.com` |
+| `FITTO_WHATSAPP_DETAIL` | variable | `count` sends only the number of matches and the link over WhatsApp (default `top`) |
 | `FITTO_COMPANIES` | secret | Private watchlist (same YAML as `companies.yaml`) that overrides the public file |
 
 Set variables with `gh variable set NAME --body value -R adamsdenniskariuki/fitto`. Variables are public: never put personal data in them.
@@ -208,6 +240,8 @@ Pages settings (already done once by the maintainer): Settings → Pages → Sou
 | `FITTO_EMAIL_TO` | yes, for email | Your address |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | one of these two | Gmail app password or other SMTP |
 | `RESEND_API_KEY` | one of these two | Resend |
+| `FITTO_WHATSAPP_TO` | no | Your WhatsApp number, e.g. `+254712345678` |
+| `CALLMEBOT_API_KEY` or `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` | with `FITTO_WHATSAPP_TO` | WhatsApp provider |
 | `OPENAI_API_KEY` | recommended | LLM scoring and drafts (OpenAI) |
 | `ANTHROPIC_API_KEY` | no | LLM scoring and drafts (Claude), instead of or as well as OpenAI |
 | `FITTO_COMPANIES` | no | Private watchlist |
@@ -228,6 +262,7 @@ Run logs show only aggregate counts. Find them under **Actions → fitto → lat
 | `failures: HTTP 429 …` / `(rate limited)` / `insufficient_quota` | Out of credit or rate-limited. Add billing credit; deferred jobs are scored on later runs. |
 | `failures: invalid response` or `schema mismatch (…)` | The model returned unusable output. Try another `FITTO_MODEL`, or unset it to use the default. |
 | `no new matches today` | Nothing new scored at or above `digest.min_score` in your profile. Lower it, or wait for deferred jobs to be scored. |
+| No WhatsApp message | Look for `delivery via whatsapp (…) failed (Error)` in the log. CallMeBot: re-send the activation message and check the key. Twilio: rejoin the sandbox (it expires after 72 hours) and check that `FITTO_WHATSAPP_TO` starts with your country code. |
 | No email arrives | Check spam, the `daily: delivered … via email` log line, and the SMTP secrets (Gmail needs an app password, port `465`). |
 | `pages` run fails: "FITTO_SITE_PASSPHRASE must be at least 12 characters" | Set a longer passphrase (section 9) and rerun `fitto` or `pages`. |
 | Site says the passphrase is wrong | The list is encrypted with the passphrase from the last deploy. After changing it, wait for the next `pages` run to finish. |

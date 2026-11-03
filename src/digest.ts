@@ -113,5 +113,10 @@ export function renderDigest(records: JobRecord[], state: State, links: Links, n
     html,
     count: records.length,
     redacted: `### Fitto daily digest (redacted)\n\n${records.length} matches would be sent. Job details are never written to public logs.`,
+    brief: {
+      headline: subject,
+      top: records.map((r) => ({ title: r.job.title, company: r.job.company, score: r.score?.final })),
+      link: links.site,
+    },
   };
 }

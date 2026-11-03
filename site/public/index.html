@@ -44,7 +44,7 @@
       <div class="grid">
         <div class="card"><h3>Public feeds only</h3><p>Greenhouse, Lever, Ashby and Workable job boards for the companies you watch, plus Remotive, We Work Remotely, RemoteOK and HN "Who is hiring". It respects robots.txt and rate limits. No LinkedIn or Indeed scraping.</p></div>
         <div class="card"><h3>Filters, then scores</h3><p>Hard filters for location, seniority, salary floor and dealbreakers come first. Then a model scores each job 0–100, with matched skills, gaps, red flags and a confidence level.</p></div>
-        <div class="card"><h3>Daily digest</h3><p>A short email with your top matches and why they fit. Jobs don't repeat unless their status changed. A weekly summary comes every Monday.</p></div>
+        <div class="card"><h3>Daily digest</h3><p>A short email with your top matches and why they fit. Jobs don't repeat unless their status changed. A weekly summary comes every Monday, with an optional WhatsApp ping.</p></div>
         <div class="card"><h3>Learns from you</h3><p>Saved, applied and dismissed jobs nudge future scores. Every learned boost is visible and editable.</p></div>
         <div class="card"><h3>Drafts, never sends</h3><p>Strong matches (80 or more) get draft CV bullets and a short cover note. Fitto never applies or contacts employers for you.</p></div>
         <div class="card"><h3>The Next Chapter</h3><p>Pick jobs on this site and send only the ones you selected to The Next Chapter, in one go.</p></div>
@@ -57,7 +57,7 @@
         <li><strong>Fetch.</strong> A scheduled GitHub Actions run collects public listings from the feeds you enable, then normalises and de-duplicates them.</li>
         <li><strong>Filter.</strong> Cheap rules remove jobs in the wrong location, at the wrong seniority, below your salary floor, or that hit a dealbreaker.</li>
         <li><strong>Score.</strong> The rest are scored against your profile by an LLM (OpenAI or Claude), or by a free keyword scorer if no key is set. Calls are capped and cached, and results are adjusted by what Fitto has learned from your feedback.</li>
-        <li><strong>Deliver.</strong> You get an email digest. The same matches are encrypted with your passphrase and published here, where only your browser can unlock them.</li>
+        <li><strong>Deliver.</strong> You get an email digest, plus a short WhatsApp ping if you want one. The same matches are encrypted with your passphrase and published here, where only your browser can unlock them.</li>
         <li><strong>Act.</strong> Mark jobs as saved, applied or dismissed. Tick the ones you want and send them to The Next Chapter with one button and one confirmation.</li>
       </ol>
     </section>

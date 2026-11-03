@@ -103,14 +103,15 @@ flowchart LR
 - **Logs:** aggregate counts only. No titles, companies, scores, URLs or tokens.
 - **Job ids:** HMAC of the source id keyed by `FITTO_STATE_KEY` (10 hex chars). They reveal nothing, so they're safe in public workflow inputs.
 - **Digests** go to your email, never to public issues.
-- **Dry run:** without `FITTO_PROFILE` and `FITTO_STATE_KEY` (or with `FITTO_DRY_RUN=1`) the workflow writes only redacted counts to the job summary. Locally it writes `out/daily.html`.
+- **Dry run:** without `FITTO_PROFILE` and `FITTO_STATE_KEY` (or with `FITTO_DRY_RUN=1`) the workflow writes only redacted counts to the job summary. Locally it writes `out/daily.html`, `.txt` and `.whatsapp.txt`.
 
 ## Digests and statuses
 
 - **Daily email** with the top `digest.top_n` jobs scoring at least `digest.min_score`. Each entry shows the title, company, location, salary, score, why it fits, gaps, red flags, the region and learned adjustment, the link (with source attribution), DevPREP interview prep for supported companies, any drafts, and the status command. A job is never repeated unless its status changes.
 - **Weekly email** (Mondays) with run counts, pipeline totals, status changes and the best new jobs.
+- **WhatsApp ping** (optional) alongside the email: the headline, the top 3 jobs (title, company, score), "+N more" and a link to your encrypted list. `FITTO_WHATSAPP_DETAIL=count` sends only the count and the link. It uses Twilio (official) or CallMeBot (free, messages your own number only). Email stays the primary channel: if the email fails, jobs are not marked as sent just because the ping succeeded.
 - **Statuses:** `gh workflow run fitto-status.yml -f ids=<id> -f status=applied`, or run the **fitto-status** workflow from the Actions page.
-- **Sinks:** delivery goes through `src/sinks/`. `Sink.send(message)` is used for email (SMTP or Resend) and dry run, and `SubmissionSink.submit(url)` for The Next Chapter.
+- **Sinks:** delivery goes through `src/sinks/`. `Sink.send(message)` is used for email (SMTP or Resend), WhatsApp (`notifyOnly` sinks that render `message.brief`) and dry run, and `SubmissionSink.submit(url)` for The Next Chapter.
 
 ## Feedback learning
 
@@ -185,6 +186,9 @@ Set secrets with `gh secret set NAME -R adamsdenniskariuki/fitto` and variables 
 | `FITTO_EMAIL_TO` | For email | Digest recipient |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | For email (SMTP) | e.g. Gmail: `smtp.gmail.com`, `465`, your address, an app password |
 | `RESEND_API_KEY` | For email (Resend) | Alternative to SMTP |
+| `FITTO_WHATSAPP_TO` | For WhatsApp | Your number in international format, e.g. `+254712345678` |
+| `CALLMEBOT_API_KEY` | For WhatsApp (CallMeBot) | Free key from callmebot.com |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` | For WhatsApp (Twilio) | Alternative to CallMeBot; `FROM` defaults to the Twilio sandbox number |
 | `OPENAI_API_KEY` | Recommended | LLM scoring and drafts with OpenAI (default provider) |
 | `ANTHROPIC_API_KEY` | Optional | LLM scoring and drafts with Claude |
 | `FITTO_SITE_PASSPHRASE` | For the site | At least 12 characters; encrypts the job list published to Pages |
@@ -200,7 +204,8 @@ Set secrets with `gh secret set NAME -R adamsdenniskariuki/fitto` and variables 
 | `FITTO_MAX_LLM_CALLS` | `40` | Scoring calls per run |
 | `FITTO_MAX_DRAFTS` | `3` | Drafts per run for scores of 80 or more |
 | `FITTO_EMAIL_FROM` | SMTP user / Resend default | Sender address |
-| `FITTO_SITE_URL` | none | Site link in emails, e.g. `https://fitto.madebyfavor.com` |
+| `FITTO_SITE_URL` | none | Site link in emails and WhatsApp, e.g. `https://fitto.madebyfavor.com` |
+| `FITTO_WHATSAPP_DETAIL` | `top` | `count` to send only the number of matches and the link over WhatsApp |
 
 **Local only:** `FITTO_DRY_RUN=1` (placeholder profile, local state, no delivery), `FITTO_PROFILE_FILE` (profile path, default `profile.yaml`), `FITTO_STATE_FILE` (use a local encrypted state file instead of the `fitto-state` branch), `FITTO_STATE_BRANCH` (default `fitto-state`), `FITTO_QUIET=1` (no log output).
 

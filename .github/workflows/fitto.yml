@@ -41,6 +41,12 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FITTO_WHATSAPP_TO: ${{ secrets.FITTO_WHATSAPP_TO }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
+          CALLMEBOT_API_KEY: ${{ secrets.CALLMEBOT_API_KEY }}
+          FITTO_WHATSAPP_DETAIL: ${{ vars.FITTO_WHATSAPP_DETAIL }}
           FITTO_EMAIL_TO: ${{ secrets.FITTO_EMAIL_TO }}
           FITTO_EMAIL_FROM: ${{ vars.FITTO_EMAIL_FROM }}
           FITTO_SITE_URL: ${{ vars.FITTO_SITE_URL }}

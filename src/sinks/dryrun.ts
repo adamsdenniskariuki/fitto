@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { log } from "../log.js";
 import type { Message, Sink } from "./types.js";
+import { detailFrom, renderWhatsApp } from "./whatsapp.js";
 
 /**
  * Dry-run delivery. In GitHub Actions it writes only the redacted form (counts)
@@ -23,6 +24,7 @@ export class DryRunSink implements Sink {
     mkdirSync(this.outDir, { recursive: true });
     writeFileSync(join(this.outDir, `${m.kind}.html`), m.html);
     writeFileSync(join(this.outDir, `${m.kind}.txt`), m.text);
-    log.info(`dry run: wrote ${this.outDir}/${m.kind}.html and .txt (${m.count} jobs)`);
+    writeFileSync(join(this.outDir, `${m.kind}.whatsapp.txt`), renderWhatsApp(m, detailFrom(this.env)));
+    log.info(`dry run: wrote ${this.outDir}/${m.kind}.html, .txt and .whatsapp.txt (${m.count} jobs)`);
   }
 }
