@@ -88,7 +88,9 @@ Then pick one provider.
 
 CallMeBot is a free, unofficial gateway: job titles pass through it, and it may be slow or rate-limited.
 
-**Twilio (official)**
+**Twilio (official, not recommended for the daily ping)**
+
+WhatsApp only lets a business send free-form messages within 24 hours of your last message to it. Fitto's morning ping usually falls outside that window, so Twilio rejects it (error 63016) unless you message the sandbox every day. A permanent setup needs a paid, registered sender and a Meta-approved template, which Fitto doesn't send yet. Use CallMeBot unless you need an official channel.
 
 1. Create an account at <https://www.twilio.com/try-twilio>, then open **Messaging → Try it out → Send a WhatsApp message**.
 2. Join the sandbox by sending the shown `join <words>` code from your phone to **+1 415 523 8886**. The sandbox expires after 72 hours without messages; send the code again to rejoin. For a permanent sender, register a WhatsApp sender in Twilio and set `TWILIO_WHATSAPP_FROM` to it.
@@ -262,7 +264,7 @@ Run logs show only aggregate counts. Find them under **Actions → fitto → lat
 | `failures: HTTP 429 …` / `(rate limited)` / `insufficient_quota` | Out of credit or rate-limited. Add billing credit; deferred jobs are scored on later runs. |
 | `failures: invalid response` or `schema mismatch (…)` | The model returned unusable output. Try another `FITTO_MODEL`, or unset it to use the default. |
 | `no new matches today` | Nothing new scored at or above `digest.min_score` in your profile. Lower it, or wait for deferred jobs to be scored. |
-| No WhatsApp message | Look for `delivery via whatsapp (…) failed (Error)` in the log. CallMeBot: re-send the activation message and check the key. Twilio: rejoin the sandbox (it expires after 72 hours) and check that `FITTO_WHATSAPP_TO` starts with your country code. |
+| No WhatsApp message | Look for `delivery via whatsapp (…) failed (Error)` in the log. CallMeBot: re-send the activation message and check the key. Twilio: error 63016 means the 24-hour window closed (see above); also rejoin the sandbox (it expires after 72 hours) and check that `FITTO_WHATSAPP_TO` starts with your country code. |
 | No email arrives | Check spam, the `daily: delivered … via email` log line, and the SMTP secrets (Gmail needs an app password, port `465`). |
 | `pages` run fails: "FITTO_SITE_PASSPHRASE must be at least 12 characters" | Set a longer passphrase (section 9) and rerun `fitto` or `pages`. |
 | Site says the passphrase is wrong | The list is encrypted with the passphrase from the last deploy. After changing it, wait for the next `pages` run to finish. |
