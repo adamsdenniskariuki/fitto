@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deliver, sinksFromEnv, type Message, type Sink } from "../src/sinks/index.js";
-import { CallMeBotSink, e164, renderWhatsApp, TwilioWhatsAppSink, whatsappSinkFromEnv } from "../src/sinks/whatsapp.js";
+import { CallMeBotSink, e164, renderWhatsApp, templateVariables, TwilioWhatsAppSink, whatsappSinkFromEnv } from "../src/sinks/whatsapp.js";
 import { SafeSinkError } from "../src/sinks/types.js";
 
 const msg = (n = 5): Message => ({
@@ -63,6 +63,24 @@ describe("WhatsApp sinks", () => {
     expect(form.get("From")).toBe("whatsapp:+14155238886");
     expect(form.get("Body")).toContain("Engineer 1");
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from("AC123:tok").toString("base64")}`);
+  });
+
+  it("Twilio sends an approved template when TWILIO_CONTENT_SID is set", async () => {
+    const { calls, fetchFn } = capture(201);
+    const env = { FITTO_WHATSAPP_TO: "+254712345678", TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t", TWILIO_WHATSAPP_FROM: "+254700000000", TWILIO_CONTENT_SID: "HX123" };
+    await new TwilioWhatsAppSink(env, fetchFn).send(msg());
+    const form = new URLSearchParams(String(calls[0]!.init.body));
+    expect(form.get("Body")).toBeNull();
+    expect(form.get("ContentSid")).toBe("HX123");
+    const vars = JSON.parse(form.get("ContentVariables")!) as Record<string, string>;
+    expect(vars["1"]).toBe("5 job matches for 2026-11-03");
+    expect(vars["2"]).toBe("1) Engineer 1 at Co 1 (90); 2) Engineer 2 at Co 2 (89); 3) Engineer 3 at Co 3 (88); +2 more");
+    expect(vars["3"]).toBe("https://fitto.example/jobs.html");
+    expect(Object.values(vars).join("")).not.toMatch(/[\n\t]/);
+  });
+
+  it("template variables respect count mode", () => {
+    expect(templateVariables(msg(), "count")["2"]).toBe("5 jobs to review");
   });
 
   it("Twilio errors carry the status only", async () => {

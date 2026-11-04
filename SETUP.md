@@ -88,9 +88,9 @@ Then pick one provider.
 
 CallMeBot is a free, unofficial gateway: job titles pass through it, and it may be slow or rate-limited.
 
-**Twilio (official, not recommended for the daily ping)**
+**Twilio (official)**
 
-WhatsApp only lets a business send free-form messages within 24 hours of your last message to it. Fitto's morning ping usually falls outside that window, so Twilio rejects it (error 63016) unless you message the sandbox every day. A permanent setup needs a paid, registered sender and a Meta-approved template, which Fitto doesn't send yet. Use CallMeBot unless you need an official channel.
+WhatsApp only lets a business send free-form messages within 24 hours of your last message to it, and Fitto's morning ping usually falls outside that window. On the sandbox, message it daily or the ping fails (error 63016). With your own registered sender, use a Meta-approved template (step 4); without one, Twilio rejects the send (error 21654 or 63016).
 
 1. Create an account at <https://www.twilio.com/try-twilio>, then open **Messaging → Try it out → Send a WhatsApp message**.
 2. Join the sandbox by sending the shown `join <words>` code from your phone to **+1 415 523 8886**. The sandbox expires after 72 hours without messages; send the code again to rejoin. For a permanent sender, register a WhatsApp sender in Twilio and set `TWILIO_WHATSAPP_FROM` to it.
@@ -98,6 +98,15 @@ WhatsApp only lets a business send free-form messages within 24 hours of your la
    ```sh
    gh secret set TWILIO_ACCOUNT_SID -R adamsdenniskariuki/fitto
    gh secret set TWILIO_AUTH_TOKEN -R adamsdenniskariuki/fitto
+   ```
+4. Own sender only: in Twilio open **Messaging → Content Template Builder → Create new**. Choose type **Text**, category **Utility**, and this body:
+   ```text
+   Fitto update: {{1}}. Top picks: {{2}}. Full list: {{3}}. Reply STOP to opt out.
+   ```
+   Use samples such as `3 job matches for 2026-11-04`, `1) Backend Engineer at Acme (88)` and `https://fitto.madebyfavor.com/jobs.html`. Submit it for WhatsApp approval (this usually takes from a few minutes to a day). Then store its `HX…` SID and your sender number:
+   ```sh
+   gh secret set TWILIO_CONTENT_SID -R adamsdenniskariuki/fitto
+   gh secret set TWILIO_WHATSAPP_FROM -R adamsdenniskariuki/fitto   # e.g. +254700000000
    ```
 
 If both are set, Twilio is used. To keep job titles out of WhatsApp entirely, send only the count and the link: `gh variable set FITTO_WHATSAPP_DETAIL --body count -R adamsdenniskariuki/fitto`. Set `FITTO_SITE_URL` (section 5) so the message links to your list.
@@ -264,7 +273,7 @@ Run logs show only aggregate counts. Find them under **Actions → fitto → lat
 | `failures: HTTP 429 …` / `(rate limited)` / `insufficient_quota` | Out of credit or rate-limited. Add billing credit; deferred jobs are scored on later runs. |
 | `failures: invalid response` or `schema mismatch (…)` | The model returned unusable output. Try another `FITTO_MODEL`, or unset it to use the default. |
 | `no new matches today` | Nothing new scored at or above `digest.min_score` in your profile. Lower it, or wait for deferred jobs to be scored. |
-| No WhatsApp message | Look for `delivery via whatsapp (…) failed (Error)` in the log. CallMeBot: re-send the activation message and check the key. Twilio: error 63016 means the 24-hour window closed (see above); also rejoin the sandbox (it expires after 72 hours) and check that `FITTO_WHATSAPP_TO` starts with your country code. |
+| No WhatsApp message | Look for `delivery via whatsapp (…) failed` in the log. CallMeBot: re-send the activation message and check the key. Twilio: the log shows the error code and a hint. 63016 or 21654 means you need an approved template (`TWILIO_CONTENT_SID`) or, on the sandbox, a message to it within the last 24 hours. Also rejoin the sandbox (it expires after 72 hours) and check that `FITTO_WHATSAPP_TO` starts with your country code. |
 | No email arrives | Check spam, the `daily: delivered … via email` log line, and the SMTP secrets (Gmail needs an app password, port `465`). |
 | `pages` run fails: "FITTO_SITE_PASSPHRASE must be at least 12 characters" | Set a longer passphrase (section 9) and rerun `fitto` or `pages`. |
 | Site says the passphrase is wrong | The list is encrypted with the passphrase from the last deploy. After changing it, wait for the next `pages` run to finish. |
