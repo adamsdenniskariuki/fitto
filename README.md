@@ -109,7 +109,7 @@ flowchart LR
 
 - **Daily email** with the top `digest.top_n` jobs scoring at least `digest.min_score`. Each entry shows the title, company, location, salary, score, why it fits, gaps, red flags, the region and learned adjustment, the link (with source attribution), DevPREP interview prep for supported companies, any drafts, and the status command. A job is never repeated unless its status changes.
 - **Weekly email** (Mondays) with run counts, pipeline totals, status changes and the best new jobs.
-- **WhatsApp ping** (optional) alongside the email: the headline, the top 3 jobs (title, company, score), "+N more" and a link to your encrypted list. `FITTO_WHATSAPP_DETAIL=count` sends only the count and the link. It uses CallMeBot (free, messages your own number only; recommended) or Twilio (official, but WhatsApp's 24-hour rule means scheduled pings only arrive if you messaged the sender in the last day). Email stays the primary channel: if the email fails, jobs are not marked as sent just because the ping succeeded.
+- **WhatsApp ping** (optional) alongside the email: the headline, the top 3 jobs (title, company, score), "+N more" and a link to your encrypted list. `FITTO_WHATSAPP_DETAIL=count` sends only the count and the link. It uses CallMeBot (free, messages your own number only; recommended) or Twilio (official; with your own sender it sends a Meta-approved template set in `TWILIO_CONTENT_SID`, because WhatsApp's 24-hour rule blocks free-form scheduled messages). Email stays the primary channel: if the email fails, jobs are not marked as sent just because the ping succeeded.
 - **Statuses:** `gh workflow run fitto-status.yml -f ids=<id> -f status=applied`, or run the **fitto-status** workflow from the Actions page.
 - **Sinks:** delivery goes through `src/sinks/`. `Sink.send(message)` is used for email (SMTP or Resend), WhatsApp (`notifyOnly` sinks that render `message.brief`) and dry run, and `SubmissionSink.submit(url)` for The Next Chapter.
 
@@ -189,6 +189,7 @@ Set secrets with `gh secret set NAME -R adamsdenniskariuki/fitto` and variables 
 | `FITTO_WHATSAPP_TO` | For WhatsApp | Your number in international format, e.g. `+254712345678` |
 | `CALLMEBOT_API_KEY` | For WhatsApp (CallMeBot) | Free key from callmebot.com |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` | For WhatsApp (Twilio) | Alternative to CallMeBot; `FROM` defaults to the Twilio sandbox number |
+| `TWILIO_CONTENT_SID` | For your own Twilio sender | `HX…` SID of the approved template `Fitto update: {{1}}. Top picks: {{2}}. Full list: {{3}}. …` (see SETUP) |
 | `OPENAI_API_KEY` | Recommended | LLM scoring and drafts with OpenAI (default provider) |
 | `ANTHROPIC_API_KEY` | Optional | LLM scoring and drafts with Claude |
 | `FITTO_SITE_PASSPHRASE` | For the site | At least 12 characters; encrypts the job list published to Pages |

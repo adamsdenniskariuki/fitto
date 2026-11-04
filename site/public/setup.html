@@ -55,9 +55,11 @@ gh secret set RESEND_API_KEY</code></pre>
     <pre><code>gh secret set FITTO_WHATSAPP_TO       # international format, e.g. +254712345678
 # CallMeBot (free, your own number only): follow callmebot.com's activation steps, then
 gh secret set CALLMEBOT_API_KEY
-# or Twilio (official, but WhatsApp only allows its messages within 24 hours of your last message to it)
+# or Twilio (official). Your own sender also needs an approved template (see the guide):
 gh secret set TWILIO_ACCOUNT_SID
-gh secret set TWILIO_AUTH_TOKEN</code></pre>
+gh secret set TWILIO_AUTH_TOKEN
+gh secret set TWILIO_WHATSAPP_FROM    # your registered sender; omit for the sandbox
+gh secret set TWILIO_CONTENT_SID      # HX… SID of the approved template</code></pre>
     <p>To keep job titles out of WhatsApp, send only the count and the link: <code>gh variable set FITTO_WHATSAPP_DETAIL --body count</code>. Email stays the main channel. <a href="https://github.com/adamsdenniskariuki/fitto/blob/main/SETUP.md#optional-whatsapp-ping">Step-by-step guide</a>.</p>
 
     <h2>4. Smarter scoring (recommended)</h2>

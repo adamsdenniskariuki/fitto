@@ -22,6 +22,31 @@ export function renderWhatsApp(m: Message, detail: Detail = "top"): string {
   return lines.join("\n");
 }
 
+/** One-line value for a WhatsApp template variable: no newlines/tabs, no 4+ spaces, bounded length. */
+const oneLine = (s: string, n = 900) => clip(s.replace(/[\r\n\t]+/g, " ").replace(/ {4,}/g, "   ").trim(), n);
+
+/**
+ * Variables for a Meta-approved Twilio Content Template, e.g. the body
+ * "Fitto update: {{1}}. Top picks: {{2}}. Full list: {{3}}".
+ */
+export function templateVariables(m: Message, detail: Detail = "top"): Record<string, string> {
+  const b = m.brief ?? { headline: m.subject, top: [] };
+  let picks: string;
+  if (!b.top.length) picks = "none today";
+  else if (detail === "top") {
+    picks = b.top
+      .slice(0, MAX_ITEMS)
+      .map((j, i) => `${i + 1}) ${clip(j.title, 70)} at ${clip(j.company, 40)}${j.score !== undefined ? ` (${j.score})` : ""}`)
+      .join("; ");
+    if (b.top.length > MAX_ITEMS) picks += `; +${b.top.length - MAX_ITEMS} more`;
+  } else picks = `${b.top.length} job${b.top.length === 1 ? "" : "s"} to review`;
+  return {
+    "1": oneLine(b.headline.replace(/^Fitto:\s*/i, "")),
+    "2": oneLine(picks),
+    "3": oneLine(b.link ?? "your email"),
+  };
+}
+
 export function detailFrom(env: Env): Detail {
   return env.FITTO_WHATSAPP_DETAIL?.toLowerCase() === "count" ? "count" : "top";
 }
@@ -47,8 +72,15 @@ export class TwilioWhatsAppSink implements Sink {
     const body = new URLSearchParams({
       From: `whatsapp:${e164(from)}`,
       To: `whatsapp:${e164(this.env.FITTO_WHATSAPP_TO!)}`,
-      Body: renderWhatsApp(m, detailFrom(this.env)),
     });
+    // A registered sender needs an approved template outside WhatsApp's 24-hour window.
+    const contentSid = this.env.TWILIO_CONTENT_SID?.trim();
+    if (contentSid) {
+      body.set("ContentSid", contentSid);
+      body.set("ContentVariables", JSON.stringify(templateVariables(m, detailFrom(this.env))));
+    } else {
+      body.set("Body", renderWhatsApp(m, detailFrom(this.env)));
+    }
     const auth = Buffer.from(`${sid}:${this.env.TWILIO_AUTH_TOKEN}`).toString("base64");
     const res = await this.fetchFn(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
       method: "POST",
@@ -77,7 +109,9 @@ function twilioHint(code: unknown): string {
     21606: ": TWILIO_WHATSAPP_FROM is not a WhatsApp sender on this account (sandbox: +14155238886)",
     63007: ": TWILIO_WHATSAPP_FROM is not a WhatsApp sender on this account (sandbox: +14155238886)",
     63015: ": join the sandbox first (send the join code to +14155238886)",
-    63016: ": outside WhatsApp's 24-hour window; message the Twilio number, then retry",
+    63016: ": outside WhatsApp's 24-hour window; set TWILIO_CONTENT_SID to an approved template",
+    21654: ": this sender needs an approved template; set TWILIO_CONTENT_SID",
+    63027: ": template variables rejected; check the template has {{1}}, {{2}} and {{3}}",
   };
   return typeof code === "number" ? (hints[code] ?? "") : "";
 }
