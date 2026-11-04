@@ -185,7 +185,7 @@ A job reappears in the digest only if its status changes. Locally, with `FITTO_S
 
 ## 8. Send jobs to The Next Chapter (optional)
 
-Fitto never sends anything on its own. Only the job ids you pass are sent.
+Fitto never sends anything on its own. Only the job ids you pass are sent. Each one is sent as its posting URL. For Hacker News "Who is hiring" jobs, Fitto sends the company's application link from the comment (for example a Personio or Greenhouse page), because TNC can't read the HN comment itself.
 
 1. Create an API token in your The Next Chapter account, then store it:
    ```sh

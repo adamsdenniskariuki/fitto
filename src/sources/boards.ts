@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import type { HttpClient } from "../http.js";
-import { decodeEntities, htmlToText, isRemote, parseSalary } from "../normalize.js";
+import { decodeEntities, htmlToText, isRemote, parseSalary, pickApplyUrl } from "../normalize.js";
 import type { RawJob } from "../types.js";
 
 interface RemotiveJob {
@@ -143,6 +143,7 @@ export function parseHnComment(hit: AlgoliaHit): RawJob | undefined {
   const title = parts.slice(1).find((p) => ROLE_RE.test(p)) ?? parts[1]!;
   const location = parts.slice(1).filter((p) => p !== title).join(" | ");
   const description = htmlToText(html);
+  const hrefs = [...html.matchAll(/href="([^"]+)"/gi)].map((m) => decodeEntities(m[1]!)).join(" ");
   return {
     source: "hn",
     sourceId: hit.objectID,
@@ -151,6 +152,7 @@ export function parseHnComment(hit: AlgoliaHit): RawJob | undefined {
     location: location.slice(0, 200),
     remote: isRemote(firstLine),
     url: `https://news.ycombinator.com/item?id=${hit.objectID}`,
+    applyUrl: pickApplyUrl(hrefs) ?? pickApplyUrl(description),
     description,
     postedAt: hit.created_at,
     salary: parseSalary(firstLine) ?? parseSalary(description),

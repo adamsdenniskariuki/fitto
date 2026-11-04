@@ -52,6 +52,30 @@ export function isRemote(...texts: (string | undefined | null)[]): boolean {
   return texts.some((t) => !!t && /\b(remote|anywhere|distributed|work from home|wfh)\b/i.test(t));
 }
 
+const ATS_HOST =
+  /(^|\.)(greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com|personio\.(com|de)|recruitee\.com|smartrecruiters\.com|teamtailor\.com|bamboohr\.com|myworkdayjobs\.com|breezy\.hr|jobvite\.com|rippling-ats\.com|ats\.rippling\.com|wellfound\.com|join\.com|workatastartup\.com)$/i;
+const JOBISH = /(^|[./_-])(jobs?|careers?|apply|positions?|openings?|hiring|vacanc(y|ies))([./_?#-]|$)/i;
+
+/**
+ * The best direct application link in free text (e.g. an HN "Who is hiring" comment):
+ * an ATS posting first, then any careers/jobs page. Ignores HN itself and truncated links.
+ */
+export function pickApplyUrl(text: string): string | undefined {
+  const found: URL[] = [];
+  for (const m of text.matchAll(/https?:\/\/[^\s"'<>]+/gi)) {
+    if (/(\.\.\.|…)$/.test(m[0])) continue;
+    const raw = m[0].replace(/[.,;:!?)\]]+$/, "");
+    try {
+      const u = new URL(raw);
+      if (!/(^|\.)ycombinator\.com$/i.test(u.hostname)) found.push(u);
+    } catch {
+      /* not a URL */
+    }
+  }
+  const hit = found.find((u) => ATS_HOST.test(u.hostname)) ?? found.find((u) => JOBISH.test(u.hostname + u.pathname));
+  return hit?.toString();
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = { $: "USD", "€": "EUR", "£": "GBP" };
 
 /** Best-effort salary extraction from free text like "$120k – $150k" or "120,000-150,000 USD". */
