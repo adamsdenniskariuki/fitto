@@ -62,6 +62,12 @@ describe("TNC helpers", () => {
     expect(classify({ status: "queued" })).toEqual({ state: "sent", detail: "queued" });
     expect(classify({ status: "https://evil/<x>" }).detail).not.toMatch(/[:/<>]/);
   });
+
+  it("keeps a short, URL-free failure reason", () => {
+    expect(classify({ status: "failed", error: { code: "unsupported_source" } }).detail).toBe("failed: unsupported_source");
+    expect(classify({ status: "failed", message: `Could not fetch ${JOB_URL} (403)` }).detail).toBe("failed: Could not fetch 403");
+    expect(classify({ status: "failed" }).detail).toBe("failed");
+  });
 });
 
 describe("TncSink", () => {
