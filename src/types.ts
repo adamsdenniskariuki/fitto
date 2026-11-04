@@ -17,6 +17,8 @@ export interface Job {
   location: string;
   remote: boolean;
   url: string;
+  /** Direct application page when the listing (e.g. an HN comment) links to one. */
+  applyUrl?: string;
   /** Plain text, truncated. */
   description: string;
   postedAt?: string;

@@ -1,6 +1,17 @@
 import { log } from "./log.js";
+import { pickApplyUrl } from "./normalize.js";
 import { DryRunTncSink, idempotencyKey, TncSink, type SubmissionResult, type SubmissionSink } from "./sinks/tnc.js";
 import type { State } from "./state.js";
+import type { Job } from "./types.js";
+
+/**
+ * The URL handed to TNC: the direct application page when known. HN comments aren't job
+ * pages (and TNC's fetcher can be blocked there), so older HN records fall back to a link
+ * found in the description.
+ */
+export function submitUrl(job: Job): string {
+  return job.applyUrl ?? (job.source === "hn" ? pickApplyUrl(job.description) : undefined) ?? job.url;
+}
 
 /** One workflow run handles at most this many selected jobs. */
 export const MAX_SUBMIT_IDS = 50;
@@ -77,11 +88,11 @@ export async function submitJobs(state: State, ids: string[], sink: SubmissionSi
     } else {
       if (posted && gap) await sleep(gap);
       posted = true;
-      res = await sink.submit(r.job.url);
+      res = await sink.submit(submitUrl(r.job));
     }
     stats[res.state]++;
     log.info(`tnc: job ${pos}: ${res.state} (${res.detail})`);
-    if (opts.record !== false) await record(state, id, r.job.url, res, now().toISOString());
+    if (opts.record !== false) await record(state, id, submitUrl(r.job), res, now().toISOString());
   }
   return stats;
 }
@@ -93,7 +104,7 @@ export async function refreshPending(state: State, sink: SubmissionSink, limit =
     if (n >= limit) break;
     if (s.state !== "sent" || !s.statusUrl || !state.jobs[id]) continue;
     const res = await sink.refresh(s.statusUrl);
-    await record(state, id, state.jobs[id].job.url, res, now().toISOString());
+    await record(state, id, submitUrl(state.jobs[id].job), res, now().toISOString());
     n++;
   }
   if (n) log.info(`tnc: refreshed ${n} pending submission(s)`);
