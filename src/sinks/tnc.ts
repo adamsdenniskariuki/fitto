@@ -46,13 +46,42 @@ export class CorsBlockedError extends Error {
 const ACCEPTED = new Set(["accepted", "completed", "complete", "succeeded", "success", "done", "processed", "created", "published"]);
 const FAILED = new Set(["failed", "failure", "error", "rejected", "invalid", "cancelled", "canceled", "duplicate_rejected"]);
 
+/** A short, URL-free reason from a TNC failure payload (error/reason/message fields), or "". */
+export function failureReason(body: unknown): string {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const sub = (b.submission ?? {}) as Record<string, unknown>;
+  const pick = (o: Record<string, unknown>): unknown => {
+    for (const k of ["errorCode", "error_code", "failureReason", "failure_reason", "reason", "error", "message", "detail"]) {
+      const v = o[k];
+      if (typeof v === "string" && v) return v;
+      if (v && typeof v === "object") {
+        const inner = v as Record<string, unknown>;
+        const s = inner.code ?? inner.message ?? inner.reason;
+        if (typeof s === "string" && s) return s;
+      }
+    }
+    return undefined;
+  };
+  const raw = pick(b) ?? pick(sub);
+  if (typeof raw !== "string") return "";
+  return raw
+    .replace(/\bhttps?:\/\/\S+/gi, "")
+    .replace(/[^A-Za-z0-9 _.:'-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
 /** Map a TNC status payload to our states. Unknown values stay "sent" (still in progress). */
 export function classify(body: unknown): { state: SubmissionState; detail: string } {
   const b = (body ?? {}) as Record<string, unknown>;
   const raw = [b.status, b.state, (b.submission as Record<string, unknown> | undefined)?.status].find((v) => typeof v === "string");
   const status = typeof raw === "string" ? raw.toLowerCase().replace(/[^a-z_-]/g, "").slice(0, 32) : "";
   if (ACCEPTED.has(status)) return { state: "accepted", detail: status };
-  if (FAILED.has(status)) return { state: "failed", detail: status };
+  if (FAILED.has(status)) {
+    const why = failureReason(body);
+    return { state: "failed", detail: why ? `${status}: ${why}` : status };
+  }
   return { state: "sent", detail: status || "processing" };
 }
 
