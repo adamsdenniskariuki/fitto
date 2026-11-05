@@ -15,11 +15,17 @@ export type { SiteEnvelope, SiteJob, SitePayload };
 
 export const SITE_KDF_ITERATIONS = 600_000;
 export const SITE_MAX_JOBS = 200;
+/** Jobs not seen in any feed for this long leave the site, unless you acted on them. */
+export const SITE_EXPIRE_DAYS = 21;
 const HIDDEN = ["no", "rejected"];
+const KEEP = ["saved", "applied", "interview", "offer"];
 
-export function buildSitePayload(state: State, opts: { minScore: number; repo: string; now?: Date }): SitePayload {
+export function buildSitePayload(state: State, opts: { minScore: number; repo: string; now?: Date; expireDays?: number }): SitePayload {
+  const now = opts.now ?? new Date();
+  const cutoff = now.getTime() - (opts.expireDays ?? SITE_EXPIRE_DAYS) * 86_400_000;
   const jobs = Object.values(state.jobs)
     .filter((r) => r.score && (r.score.final >= opts.minScore || state.submissions[r.job.id]) && !HIDDEN.includes(r.status))
+    .filter((r) => KEEP.includes(r.status) || state.submissions[r.job.id] || !(Date.parse(r.lastSeen) < cutoff))
     .sort((a, b) => b.score!.final - a.score!.final)
     .slice(0, SITE_MAX_JOBS)
     .map((r): SiteJob => {
@@ -38,6 +44,7 @@ export function buildSitePayload(state: State, opts: { minScore: number; repo: s
         attribution: r.job.attribution,
         postedAt: r.job.postedAt,
         firstSeen: r.firstSeen,
+        lastSeen: r.lastSeen,
         score: s.score,
         final: s.final,
         confidence: s.confidence,
@@ -52,7 +59,7 @@ export function buildSitePayload(state: State, opts: { minScore: number; repo: s
         submission: sub ? { state: sub.state, detail: sub.detail, updatedAt: sub.updatedAt } : undefined,
       };
     });
-  return { v: 1, generatedAt: (opts.now ?? new Date()).toISOString(), repo: opts.repo, jobs };
+  return { v: 1, generatedAt: now.toISOString(), repo: opts.repo, jobs };
 }
 
 export function encryptForSite(payload: unknown, passphrase: string, iter = SITE_KDF_ITERATIONS): SiteEnvelope {

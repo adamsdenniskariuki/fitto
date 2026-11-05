@@ -225,6 +225,50 @@ export const isSelectable = (send?: EffectiveSend): boolean => !send || send.sta
 
 export const sendLabel: Record<SendState, string> = { queued: "Queued", sent: "Sent", accepted: "Accepted", failed: "Failed" };
 
+// ---------- list view ----------
+
+export const PAGE_SIZE = 25;
+export type ViewFilter = "active" | "saved" | "applied" | "dismissed" | "sent" | "all";
+export type SortOrder = "score" | "newest";
+
+export interface ViewOptions {
+  filter: ViewFilter;
+  minScore: number;
+  source: string;
+  sort: SortOrder;
+  query: string;
+}
+
+export interface ViewItem {
+  job: SiteJob;
+  local?: LocalStatus;
+  send?: EffectiveSend;
+}
+
+const haystack = (j: SiteJob) => `${j.title} ${j.company} ${j.location} ${j.fit_summary} ${j.matched_skills.join(" ")}`.toLowerCase();
+
+/** Filter + sort for the jobs page. "active" = not dismissed and not yet applied/sent. */
+export function applyView(items: ViewItem[], o: ViewOptions): ViewItem[] {
+  const q = o.query.trim().toLowerCase();
+  const out = items.filter(({ job, local, send }) => {
+    const sent = !!send && send.state !== "failed";
+    if (o.filter === "active" && (local === "dismissed" || local === "applied" || sent)) return false;
+    if ((o.filter === "saved" || o.filter === "applied" || o.filter === "dismissed") && local !== o.filter) return false;
+    if (o.filter === "sent" && !send) return false;
+    // A saved job always shows in the active view, whatever its score.
+    if (job.final < o.minScore && !(o.filter === "active" && local === "saved") && o.filter !== "saved") return false;
+    if (o.source && job.source !== o.source) return false;
+    return !q || haystack(job).includes(q);
+  });
+  const newest = (j: SiteJob) => j.firstSeen;
+  out.sort((a, b) =>
+    o.sort === "newest"
+      ? newest(b.job).localeCompare(newest(a.job)) || b.job.final - a.job.final
+      : b.job.final - a.job.final || newest(b.job).localeCompare(newest(a.job)),
+  );
+  return out;
+}
+
 // ---------- route (a): GitHub Action ----------
 
 export class DispatchError extends Error {

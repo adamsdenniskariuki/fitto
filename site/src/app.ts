@@ -3,7 +3,11 @@
  * The passphrase and tokens stay on this device; tokens are sent only to the API they belong to.
  */
 import {
+  applyView,
   CorsBlockedError,
+  PAGE_SIZE,
+  type SortOrder,
+  type ViewFilter,
   decryptEnvelope,
   dispatchToAction,
   effectiveSend,
@@ -25,6 +29,7 @@ const store = new SiteStore(localStorage, sessionStorage);
 const selected = new Set<string>();
 let payload: SitePayload | undefined;
 let busy = false;
+let shown = PAGE_SIZE;
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
   const e = document.getElementById(id);
@@ -85,7 +90,8 @@ async function unlock(passphrase: string, remember: boolean): Promise<boolean> {
   $("lock").hidden = true;
   $("app").hidden = false;
   $("generated").textContent = `Updated ${new Date(payload.generatedAt).toLocaleString()} · ${payload.jobs.length} jobs`;
-  render();
+  fillSources();
+  resetAndRender();
   return true;
 }
 
@@ -104,17 +110,29 @@ function lock(): void {
 
 function visible(): SiteJob[] {
   if (!payload) return [];
-  const filter = $<HTMLSelectElement>("filter").value;
-  const q = $<HTMLInputElement>("search").value.trim().toLowerCase();
   const statuses = store.statuses;
-  return payload.jobs.filter((j) => {
-    const s = statuses[j.id]?.status;
-    if (filter === "active" && s === "dismissed") return false;
-    if ((LOCAL_STATUSES as readonly string[]).includes(filter) && s !== filter) return false;
-    if (filter === "sent" && !effectiveSend(j, store.sends[j.id])) return false;
-    if (q && !`${j.title} ${j.company} ${j.location}`.toLowerCase().includes(q)) return false;
-    return true;
-  });
+  const items = payload.jobs.map((job) => ({ job, local: statuses[job.id]?.status, send: effectiveSend(job, store.sends[job.id]) }));
+  return applyView(items, {
+    filter: $<HTMLSelectElement>("filter").value as ViewFilter,
+    minScore: Number($<HTMLSelectElement>("min-score").value) || 0,
+    source: $<HTMLSelectElement>("source").value,
+    sort: $<HTMLSelectElement>("sort").value as SortOrder,
+    query: $<HTMLInputElement>("search").value,
+  }).map((i) => i.job);
+}
+
+function fillSources(): void {
+  if (!payload) return;
+  const sel = $<HTMLSelectElement>("source");
+  const current = sel.value;
+  const sources = [...new Set(payload.jobs.map((j) => j.source))].sort();
+  sel.replaceChildren(el("option", { value: "", text: "All sources" }), ...sources.map((s) => el("option", { value: s, text: s })));
+  sel.value = sources.includes(current) ? current : "";
+}
+
+function resetAndRender(): void {
+  shown = PAGE_SIZE;
+  render();
 }
 
 function chips(label: string, items: string[], cls: string): Child {
@@ -190,7 +208,12 @@ function jobCard(j: SiteJob): HTMLElement {
 function render(): void {
   if (!payload) return;
   const jobs = visible();
-  $("jobs").replaceChildren(...(jobs.length ? jobs.map(jobCard) : [el("li", { class: "empty", text: "No jobs match this view." })]));
+  const page = jobs.slice(0, shown);
+  $("jobs").replaceChildren(...(page.length ? page.map(jobCard) : [el("li", { class: "empty", text: "No jobs match this view. Try a lower minimum score or another filter." })]));
+  $("view-count").textContent = `Showing ${page.length} of ${jobs.length} (${payload.jobs.length} in the list)`;
+  const more = $<HTMLButtonElement>("show-more");
+  more.hidden = jobs.length <= shown;
+  more.textContent = `Show ${Math.min(PAGE_SIZE, jobs.length - shown)} more`;
   updateSelection();
 }
 
@@ -203,7 +226,7 @@ function updateSelection(): void {
 }
 
 function selectAllVisible(): void {
-  for (const j of visible()) {
+  for (const j of visible().slice(0, shown)) {
     if (selected.size >= MAX_SELECTED) break;
     if (isSelectable(effectiveSend(j, store.sends[j.id]))) selected.add(j.id);
   }
@@ -374,8 +397,12 @@ function init(): void {
     if (pass) void unlock(pass, $<HTMLInputElement>("remember-pass").checked).catch((e: unknown) => ($("unlock-error").textContent = String(e instanceof Error ? e.message : e)));
   });
   $("lock-btn").addEventListener("click", lock);
-  $("filter").addEventListener("change", render);
-  $("search").addEventListener("input", render);
+  for (const id of ["filter", "min-score", "source", "sort"]) $(id).addEventListener("change", resetAndRender);
+  $("search").addEventListener("input", resetAndRender);
+  $("show-more").addEventListener("click", () => {
+    shown += PAGE_SIZE;
+    render();
+  });
   $("select-all").addEventListener("click", selectAllVisible);
   $("clear-sel").addEventListener("click", () => {
     selected.clear();

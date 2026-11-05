@@ -12,6 +12,8 @@ export interface SiteJob {
   attribution?: string;
   postedAt?: string;
   firstSeen: string;
+  /** Last time a feed listed the job; optional for lists exported before it was added. */
+  lastSeen?: string;
   score: number;
   final: number;
   confidence: string;
