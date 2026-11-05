@@ -144,6 +144,8 @@ label { font-weight: 600; }
 .lock-card { max-width: 30rem; margin: 3rem auto; background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: var(--cp-radius); padding: 2rem; box-shadow: var(--cp-shadow); }
 .toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin: 1rem 0; }
 .toolbar .grow { flex: 1 1 14rem; }
+#view-count { margin: -0.5rem 0 0.75rem; color: var(--cp-muted); font-size: 0.9rem; }
+.more { text-align: center; margin: 1rem 0; }
 .selbar {
   position: sticky; top: 3.6rem; z-index: 4; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center;
   background: var(--cp-bg-elevated); border: 1px solid var(--cp-border); border-radius: var(--cp-radius); padding: 0.6rem 0.9rem; box-shadow: var(--cp-shadow);

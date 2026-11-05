@@ -8,6 +8,7 @@ import {
   decryptEnvelope,
   DispatchError,
   dispatchToAction,
+  applyView,
   effectiveSend,
   isSelectable,
   MemoryKV,
@@ -71,8 +72,19 @@ describe("site export", () => {
     expect(p.jobs[2]!.submission).toEqual({ state: "accepted", detail: "accepted", updatedAt: "2026-01-03T00:00:00Z" });
   });
 
+  it("expires jobs no feed has listed for 21 days unless saved/applied or submitted", () => {
+    const s = sampleState();
+    const now = new Date("2026-02-01T00:00:00Z"); // all sample jobs last seen 2026-01-02
+    expect(buildSitePayload(s, { minScore: 60, repo: "o/r", now }).jobs.map((j) => j.id)).toEqual(["e5"]);
+    s.jobs.b2!.status = "saved";
+    s.jobs.a1!.lastSeen = "2026-01-25T00:00:00Z";
+    const p = buildSitePayload(s, { minScore: 60, repo: "o/r", now });
+    expect(p.jobs.map((j) => j.id)).toEqual(["a1", "b2", "e5"]);
+    expect(p.jobs[0]!.lastSeen).toBe("2026-01-25T00:00:00Z");
+  });
+
   it("publishes only ciphertext and round-trips through the browser decryptor", async () => {
-    const payload = buildSitePayload(sampleState(), { minScore: 60, repo: "o/r" });
+    const payload = buildSitePayload(sampleState(), { minScore: 60, repo: "o/r", now: new Date("2026-01-04T00:00:00Z") });
     const env = encryptForSite(payload, PASS, ITER);
     const text = JSON.stringify(env);
     for (const leak of ["Secret summary", "Engineer", "boards.example.com", "Stripe"]) expect(text).not.toContain(leak);
@@ -209,5 +221,37 @@ describe("site: local store and selection", () => {
     expect(s.settings).toEqual({ mode: "action", repo: "adamsdenniskariuki/fitto" });
     s.saveSettings({ mode: "direct", repo: "bad repo/../x" });
     expect(s.settings).toEqual({ mode: "direct", repo: "adamsdenniskariuki/fitto" });
+  });
+});
+
+describe("site: list view", () => {
+  const p = buildSitePayload(sampleState(), { minScore: 0, repo: "o/r", now: new Date("2026-01-04T00:00:00Z") });
+  const base = { filter: "active" as const, minScore: 70, source: "", sort: "score" as const, query: "" };
+  const items = () => p.jobs.map((job) => ({ job }));
+  const ids = (xs: { job: { id: string } }[]) => xs.map((x) => x.job.id);
+
+  it("defaults to unhandled jobs at or above the min score, best first", () => {
+    expect(ids(applyView(items(), base))).toEqual(["a1", "b2"]);
+    expect(ids(applyView(items(), { ...base, minScore: 0 }))).toEqual(["a1", "b2", "c3", "e5"]);
+  });
+
+  it("keeps saved jobs in the review view whatever their score, and hides applied, dismissed and sent ones", () => {
+    const list = items().map((i) => ({
+      ...i,
+      local: ({ c3: "saved", a1: "applied", b2: "dismissed" } as Record<string, "saved" | "applied" | "dismissed">)[i.job.id],
+      send: i.job.id === "e5" ? effectiveSend(i.job) : undefined,
+    }));
+    expect(ids(applyView(list, base))).toEqual(["c3"]);
+    expect(ids(applyView(list, { ...base, filter: "saved" }))).toEqual(["c3"]);
+    expect(ids(applyView(list, { ...base, filter: "all", minScore: 0 }))).toEqual(["a1", "b2", "c3", "e5"]);
+  });
+
+  it("sorts by newest and filters by source and search text", () => {
+    const list = items();
+    list.find((i) => i.job.id === "b2")!.job.firstSeen = "2026-01-03T00:00:00Z";
+    expect(ids(applyView(list, { ...base, sort: "newest" }))).toEqual(["b2", "a1"]);
+    expect(ids(applyView(list, { ...base, source: "lever" }))).toEqual([]);
+    expect(ids(applyView(list, { ...base, query: "stripe" }))).toEqual(["a1"]);
+    expect(ids(applyView(list, { ...base, query: "GO" }))).toEqual(["a1", "b2"]);
   });
 });

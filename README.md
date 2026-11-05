@@ -166,7 +166,8 @@ flowchart LR
   BR -.->|"Direct mode (blocked by CORS today)"| TNC
 ```
 
-- **Publishing:** after each `fitto`, `fitto-tnc` or `fitto-status` run, the `pages` workflow rebuilds the site and exports the matches (score at least `digest.min_score`, not dismissed, plus anything sent to TNC). The export includes title, company, salary, score, reasons, drafts and send status. A guard step fails the deploy if `_site` contains anything other than the docs and the ciphertext. Without `FITTO_SITE_PASSPHRASE` only the docs are published.
+- **Publishing:** after each `fitto`, `fitto-tnc` or `fitto-status` run, the `pages` workflow rebuilds the site and exports the matches (score at least `digest.min_score`, not dismissed, plus anything sent to TNC). The export includes title, company, salary, score, reasons, drafts and send status. Jobs that no feed has listed for 21 days drop off unless you saved or applied to them, or sent them to TNC; the list is capped at 200. A guard step fails the deploy if `_site` contains anything other than the docs and the ciphertext. Without `FITTO_SITE_PASSPHRASE` only the docs are published.
+- **Browsing:** the jobs page opens on "To review" (new and saved jobs, score 70+, best first) and shows 25 at a time with **Show more**. You can change the minimum score, filter by status or source, sort by newest, and search title, company, location or skills. Dismiss hides a job.
 - **Unlocking:** the passphrase never leaves the browser. "Remember on this device" keeps it in localStorage; otherwise it's forgotten when you close the tab.
 - **Statuses** (saved, applied, dismissed) are stored only in the browser's localStorage. Use export/import to move them between devices.
 - **Sending to The Next Chapter:** tick jobs (or use select all), then press **Send selected to The Next Chapter** and confirm once. Jobs already sent or in progress can't be selected again; failed ones can.

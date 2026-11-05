@@ -54,15 +54,30 @@
       <div class="toolbar">
         <label for="filter" class="sr-label">Show</label>
         <select id="filter">
-          <option value="active">Active (hide dismissed)</option>
+          <option value="active">To review (new + saved)</option>
           <option value="saved">Saved</option>
           <option value="applied">Applied</option>
           <option value="dismissed">Dismissed</option>
           <option value="sent">Sent to The Next Chapter</option>
           <option value="all">All</option>
         </select>
-        <input id="search" class="grow" type="search" placeholder="Filter by title, company or location" aria-label="Filter jobs">
+        <label for="min-score" class="sr-label">Minimum score</label>
+        <select id="min-score">
+          <option value="80">Score 80+</option>
+          <option value="70" selected>Score 70+</option>
+          <option value="60">Score 60+</option>
+          <option value="0">Any score</option>
+        </select>
+        <label for="source" class="sr-label">Source</label>
+        <select id="source"><option value="">All sources</option></select>
+        <label for="sort" class="sr-label">Sort</label>
+        <select id="sort">
+          <option value="score">Best match</option>
+          <option value="newest">Newest</option>
+        </select>
+        <input id="search" class="grow" type="search" placeholder="Search title, company, location, skills" aria-label="Search jobs">
       </div>
+      <p id="view-count" class="count" aria-live="polite"></p>
 
       <div class="selbar" role="region" aria-label="Selection">
         <span id="sel-count" class="count" aria-live="polite">0 selected</span>
@@ -74,6 +89,7 @@
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
 
       <ol id="jobs" class="jobs"></ol>
+      <p class="more"><button id="show-more" type="button" class="btn" hidden>Show more</button></p>
 
       <details id="settings" class="panel">
         <summary>Settings</summary>
